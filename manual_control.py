@@ -8,7 +8,7 @@ I2C_ADDRESS = 0x50
 bus = smbus.SMBus(1)
 
 SPEED = 70
-TURN_SPEED = 30
+TURN_SPEED = SPEED / (2/3)
 
 
 def send_motors(m1, m2):
