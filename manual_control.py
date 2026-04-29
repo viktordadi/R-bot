@@ -7,8 +7,8 @@ import tty
 I2C_ADDRESS = 0x50
 bus = smbus.SMBus(1)
 
-SPEED = 50
-TURN_SPEED = 10
+SPEED = 70
+TURN_SPEED = 30
 
 
 def send_motors(m1, m2):
