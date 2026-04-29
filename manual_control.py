@@ -79,11 +79,11 @@ try:
             print("Backward")
 
         elif key == "a":
-            send_motors(SPEED, SPEED)
+            send_motors(-SPEED, -SPEED)
             print("Left")
 
         elif key == "d":
-            send_motors(-SPEED, -SPEED)
+            send_motors(SPEED, SPEED)
             print("Right")
 
         elif key == "x" or key == " ":
