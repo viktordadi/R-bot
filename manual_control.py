@@ -7,8 +7,8 @@ import tty
 I2C_ADDRESS = 0x50
 bus = smbus.SMBus(1)
 
-SPEED = 120
-TURN_SPEED = 100
+SPEED = 50
+
 
 
 def send_motors(m1, m2):
@@ -71,19 +71,19 @@ try:
         key = get_key().lower()
 
         if key == "w":
-            send_motors(SPEED, SPEED)
+            send_motors(SPEED, -SPEED)
             print("Forward")
 
         elif key == "s":
-            send_motors(-SPEED, -SPEED)
+            send_motors(-SPEED, SPEED)
             print("Backward")
 
         elif key == "a":
-            send_motors(-TURN_SPEED, TURN_SPEED)
+            send_motors(SPEED, SPEED)
             print("Left")
 
         elif key == "d":
-            send_motors(TURN_SPEED, -TURN_SPEED)
+            send_motors(-SPEED, -SPEED)
             print("Right")
 
         elif key == "x" or key == " ":
