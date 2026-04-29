@@ -129,7 +129,7 @@ try:
             continue
 
         # Object detected close on either side
-        if left_dist < STOP_DISTANCE or right_dist < STOP_DISTANCE:
+        if (left_dist < STOP_DISTANCE and left_dist > 5)  or (right_dist < STOP_DISTANCE and right_dist > 5):
             print("Object detected. Stopping.")
             stop()
             time.sleep(0.2)
