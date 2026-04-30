@@ -84,4 +84,4 @@ def get_front_status(limit=LIMIT_CM):
 while True:
     status = get_front_status()
     print("Status:", status)
-    time.sleep(0.1)
+    time.sleep(0.05)
