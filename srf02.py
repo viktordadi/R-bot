@@ -36,3 +36,8 @@ def get_front_status(limit=250):
         return "L" # Skilar L ef að bara vinstri er blockaður
     else:
         return "C" # Ef að ekkert er fyrir skilar hann C sem að gott er að skilgriena sem True fyrir While lykkju
+
+# Test
+while True:
+    bilun = get_front_status()
+    print(bilun)
