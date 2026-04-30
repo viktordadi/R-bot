@@ -52,7 +52,7 @@ def scan_both():
     return r_dis, l_dis
 
 
-def get_front_status(limit=20):
+def get_front_status(limit=40):
     '''
     B = báðir blokkeraðir
     R = hægri blokkeraður
@@ -63,7 +63,6 @@ def get_front_status(limit=20):
 
     r_dis, l_dis = scan_both()
 
-    print("R:", r_dis, "cm | L:", l_dis, "cm")
 
     if r_dis is None or l_dis is None:
         return "E"
