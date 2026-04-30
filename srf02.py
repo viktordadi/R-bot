@@ -20,7 +20,7 @@ def filter_distance(distance):
         return None
 
     if distance > 600:
-        return None
+        return 9999
 
     return distance
 
