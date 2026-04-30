@@ -14,8 +14,6 @@ def filter_distance(distance):
     if distance == 0:
         return 9999
 
-    if distance < 15:
-        return None
 
     if distance > 600:
         return 9999
