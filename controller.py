@@ -1,0 +1,157 @@
+import time
+import smbus
+import pygame
+
+# I2C motor controller address
+I2C_ADDRESS = 0x50
+bus = smbus.SMBus(1)
+
+# Speed settings
+MAX_SPEED = 160      # max forward/backward speed, 0-255
+TURN_SPEED = 90      # steering strength
+DEADZONE = 0.08      # joystick deadzone
+
+# PS5 DualSense common mappings in pygame
+LEFT_STICK_X_AXIS = 0
+L2_AXIS = 4
+R2_AXIS = 5
+
+# Common DualSense button mapping:
+# Cross/X = 0
+# Circle  = 1
+CIRCLE_BUTTON = 1
+
+
+def clamp(value, min_value, max_value):
+    return max(min_value, min(max_value, value))
+
+
+def apply_deadzone(value):
+    if abs(value) < DEADZONE:
+        return 0.0
+    return value
+
+
+def trigger_to_0_1(value):
+    """
+    Many controllers report triggers as:
+    not pressed = -1.0
+    fully pressed = 1.0
+
+    This converts that to:
+    not pressed = 0.0
+    fully pressed = 1.0
+    """
+    return (value + 1.0) / 2.0
+
+
+def send_motors(m1, m2):
+    """
+    Sends motor values to the ATmega over I2C.
+
+    m1/m2 range:
+      -255 = reverse
+         0 = stop
+       255 = forward
+    """
+    m1 = int(clamp(m1, -255, 255))
+    m2 = int(clamp(m2, -255, 255))
+
+    m1_speed = abs(m1)
+    m1_sign = 0 if m1 >= 0 else 1
+
+    m2_speed = abs(m2)
+    m2_sign = 0 if m2 >= 0 else 1
+
+    data = [m1_speed, m1_sign, m2_speed, m2_sign]
+    bus.write_i2c_block_data(I2C_ADDRESS, 0x00, data)
+
+
+def stop_motors():
+    try:
+        send_motors(0, 0)
+    except Exception as e:
+        print("Could not stop motors:", e)
+
+
+def main():
+    pygame.init()
+    pygame.joystick.init()
+
+    if pygame.joystick.get_count() == 0:
+        print("No PS5 controller found.")
+        print("Connect your controller with USB or Bluetooth and try again.")
+        return
+
+    controller = pygame.joystick.Joystick(0)
+    controller.init()
+
+    print("Controller connected:")
+    print(controller.get_name())
+    print()
+    print("Controls:")
+    print("  R2 = forward")
+    print("  L2 = backward")
+    print("  Left joystick = steering")
+    print("  Circle = stop and quit")
+    print()
+    print("Lift the robot wheels before testing.")
+    time.sleep(1)
+
+    running = True
+
+    try:
+        while running:
+            pygame.event.pump()
+
+            # Read steering
+            steering = controller.get_axis(LEFT_STICK_X_AXIS)
+            steering = apply_deadzone(steering)
+
+            # Read triggers
+            l2_raw = controller.get_axis(L2_AXIS)
+            r2_raw = controller.get_axis(R2_AXIS)
+
+            l2 = trigger_to_0_1(l2_raw)
+            r2 = trigger_to_0_1(r2_raw)
+
+            # R2 forward, L2 backward
+            throttle = r2 - l2
+
+            # Your robot motor mapping:
+            # forward  = send_motors(+speed, -speed)
+            # backward = send_motors(-speed, +speed)
+            # right    = send_motors(+turn, +turn)
+            # left     = send_motors(-turn, -turn)
+            motor1 = throttle * MAX_SPEED + steering * TURN_SPEED
+            motor2 = -throttle * MAX_SPEED + steering * TURN_SPEED
+
+            motor1 = clamp(motor1, -255, 255)
+            motor2 = clamp(motor2, -255, 255)
+
+            send_motors(motor1, motor2)
+
+            for event in pygame.event.get():
+                if event.type == pygame.JOYBUTTONDOWN:
+                    if event.button == CIRCLE_BUTTON:
+                        print("Circle pressed. Stopping and quitting.")
+                        stop_motors()
+                        running = False
+
+            time.sleep(0.04)
+
+    except KeyboardInterrupt:
+        print("\nKeyboard interrupt. Stopping.")
+
+    except OSError as e:
+        print("I2C error:", e)
+        print("Check that i2cdetect -y 1 shows 0x50.")
+
+    finally:
+        stop_motors()
+        pygame.quit()
+        print("Robot stopped.")
+
+
+if __name__ == "__main__":
+    main()
