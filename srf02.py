@@ -69,13 +69,13 @@ def get_front_status(limit=20):
         return "E"
 
     if r_dis <= limit and l_dis <= limit:
-        return 'B', r_dis, l_dis
+        return 'B', l_dis, r_dis
     elif r_dis <= limit:
-        return "R", r_dis, l_dis
+        return "R", l_dis, r_dis
     elif l_dis <= limit:
-        return "L", r_dis, l_dis
+        return "L", l_dis, r_dis
     else:
-        return "C", r_dis, l_dis
+        return "C", l_dis, r_dis
 
 
 # Test loop
