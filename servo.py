@@ -18,3 +18,4 @@ def scan(sonic=True):
       break
     
   
+scan()
