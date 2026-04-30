@@ -6,8 +6,6 @@ i2c_bus = SMBus(1)
 sonic_r = 0x70
 sonic_l = 0x71
 
-# SRF02 skilar í cm
-LIMIT_CM = 25
 
 
 def filter_distance(distance):
@@ -54,7 +52,7 @@ def scan_both():
     return r_dis, l_dis
 
 
-def get_front_status(limit=LIMIT_CM):
+def get_front_status(limit=20):
     '''
     B = báðir blokkeraðir
     R = hægri blokkeraður
