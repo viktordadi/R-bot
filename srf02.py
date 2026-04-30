@@ -6,73 +6,67 @@ i2c_bus = SMBus(1)
 sonic_r = 0x70
 sonic_l = 0x71
 
-# SRF02 með skipuninni 0x51 skilar fjarlægð í cm
+# SRF02 skilar í cm
+LIMIT_CM = 25
 
 
 def filter_distance(distance):
     '''Filterar augljóslega vitlaus gildi frá SRF02'''
 
-    # 0 þýðir oft að ekkert fannst / out of range
-    # Þá látum við það teljast sem mjög langt í burtu
     if distance == 0:
         return 9999
 
-    # SRF02 mælir ekki áreiðanlega mjög nálægt
-    # 4 cm er t.d. líklega glitch/cross-talk
     if distance < 15:
         return None
 
-    # Of stór gildi eru líka óraunhæf fyrir SRF02
     if distance > 600:
         return None
 
     return distance
 
 
+def scan_one(address):
+    '''Skannar einn skynjara'''
+
+    i2c_bus.write_byte_data(address, 0, 0x51)
+    time.sleep(0.1)
+
+    high = i2c_bus.read_byte_data(address, 2)
+    low  = i2c_bus.read_byte_data(address, 3)
+
+    distance = high * 256 + low
+
+    return filter_distance(distance)
+
+
 def scan_both():
-    '''Skannar báða skynjara og skilar fjarlægð í cm'''
+    '''Skannar báða skynjara EKKI á sama tíma (forðast truflun)'''
 
-    # Byrjar mælingu hjá báðum skynjurum
-    i2c_bus.write_byte_data(sonic_r, 0, 0x51)
-    i2c_bus.write_byte_data(sonic_l, 0, 0x51)
+    # Hægri fyrst
+    r_dis = scan_one(sonic_r)
 
-    # Bíður eftir að mæling klárist
-    time.sleep(0.12)
+    # Smá delay til að forðast cross-talk
+    time.sleep(0.05)
 
-    # Les hægri skynjara
-    high_r = i2c_bus.read_byte_data(sonic_r, 2)
-    low_r = i2c_bus.read_byte_data(sonic_r, 3)
-
-    # Les vinstri skynjara
-    high_l = i2c_bus.read_byte_data(sonic_l, 2)
-    low_l = i2c_bus.read_byte_data(sonic_l, 3)
-
-    # Setur saman high og low byte
-    r_dis = high_r * 256 + low_r
-    l_dis = high_l * 256 + low_l
-
-    # Filterar mælingarnar
-    r_dis = filter_distance(r_dis)
-    l_dis = filter_distance(l_dis)
+    # Svo vinstri
+    l_dis = scan_one(sonic_l)
 
     return r_dis, l_dis
 
 
-def get_front_status(limit=25):
+def get_front_status(limit=LIMIT_CM):
     '''
-    Skannar og skilar stöðu:
-    B = báðir skynjarar blockaðir
-    R = hægri skynjari blockaður
-    L = vinstri skynjari blockaður
-    C = clear, ekkert blockað
-    E = error / ótraust mæling
+    B = báðir blokkeraðir
+    R = hægri blokkeraður
+    L = vinstri blokkeraður
+    C = clear
+    E = error
     '''
 
     r_dis, l_dis = scan_both()
 
     print("R:", r_dis, "cm | L:", l_dis, "cm")
 
-    # Ef annar skynjarinn skilar None, þá er mælingin ótraust
     if r_dis is None or l_dis is None:
         return "E"
 
