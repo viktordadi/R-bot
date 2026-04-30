@@ -10,9 +10,9 @@ def scan(sonic=True):
     if sonic:
       time.sleep(0.5)
       kit.servo[0].angle = 45
-      kit.servo[1].angle = -45
+      kit.servo[1].angle = 360-45
       time.sleep(0.5)
-      kit.servo[0].angle = -30
+      kit.servo[0].angle = 360-30
       kit.servo[1].angle = 30
     else:
       break
