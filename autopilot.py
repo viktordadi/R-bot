@@ -90,7 +90,7 @@ while True:
         go_left()
     elif command == "L":
         go_right()
-    time.sleep(0.05)
+    time.sleep(0.1)
 
 
     
