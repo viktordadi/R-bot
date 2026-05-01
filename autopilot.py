@@ -16,11 +16,6 @@ Motor_address = 0x50
 motor_speed = 70
 
 
-# ýmis gildi (mögulega )
-sensor_distance_stop = 200
-sensor_distance_continue = 300
-
-
 
 #-------------------------------------------
 # senda upplysingar yfir yfir i I2C/motor
