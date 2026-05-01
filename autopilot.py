@@ -1,7 +1,25 @@
+import threading
+import servo
+import srf02
 import smbus
 import time
 import random
-from srf02 import get_front_status  
+
+
+def run_servo():
+    servo
+
+def run_sensor():
+    while True:
+        print(srf02.get_front_status())
+        time.sleep(0.05)
+
+# keyra bæði í bakgrunni
+threading.Thread(target=run_servo, daemon=True).start()
+threading.Thread(target=run_sensor, daemon=True).start()
+
+
+
 bus = smbus.SMBus(1) 
 
 # addressa fyrir motor (hex yfir í decimal)
@@ -54,23 +72,27 @@ def go_right():
     send_to_motor(motor_speed, motor_speed)
 
 def go_right_smooth():
-    send_to_motor(motor_speed*0.8, motor_speed*0.6)
+    send_to_motor(motor_speed*0.7, -motor_speed*0.2)
 
 def go_left():
     send_to_motor(-motor_speed, -motor_speed)
 
 def go_left_smooth():
-    send_to_motor(-motor_speed*0.6, motor_speed*0.8)
+    send_to_motor(motor_speed*0.2, -motor_speed*0.7)
 
 def stop():
     send_to_motor(0,0)
 
 
 while True:
-    command, dist_L, dist_R = get_front_status()
+    command, dist_L, dist_R = srf02.get_front_status()
 
     if command == "C":
-        go_forward()
+        print("Clear")
+        if min(dist_L, dist_R) < 60:
+            go_forward_slow()
+        else:   
+            go_forward()
         """
     elif get_front_status() [0] == "B":
         time.sleep(0.1)
@@ -80,21 +102,31 @@ while True:
             go_left() 
         else:
         """
+        """
     elif command == "B":
         x = random.randint(0, 1)
         if x == 1:
             go_left()
         if x == 0:
             go_right()
-    elif command == "R":
-        go_left()
-    elif command == "L":
-        go_right()
-    else:
+        """
+    elif command == "B":
+        print("Both")
         go_backwards_slow()
+        time.sleep(0.3)
+        if dist_L > dist_R:
+            go_left()
+        else:
+            go_right()
+    elif command == "R":
+        print("Right")
+        go_left_smooth()
+    elif command == "L":
+        print("Left")
+        go_right_smooth()
+    else:
+        stop()
+        time.sleep(0.2)
+        go_backwards_slow()
+
     time.sleep(0.1)
-
-
-    
-
-
