@@ -11,7 +11,7 @@ def servo_loop():
     while True:
         with i2c_lock:
             servo.scan()
-        time.sleep(0.1)
+        time.sleep(0.05)
 threading.Thread(target=servo_loop, daemon=True).start()
 
 
@@ -21,7 +21,7 @@ bus = smbus.SMBus(1)
 Motor_address = 0x50 
 
 # upphafs skilirði:
-motor_speed = 100
+motor_speed = 180
 
 
 
@@ -111,7 +111,7 @@ def autopilot_step():
         stop()
         time.sleep(0.2)
         go_backwards_slow()
-        time.sleep(1)
+        time.sleep(2)
         stop()
 
 
