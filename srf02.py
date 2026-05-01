@@ -28,7 +28,7 @@ def scan_one(address):
     '''Skannar einn skynjara'''
 
     i2c_bus.write_byte_data(address, 0, 0x51)
-    time.sleep(0.1)
+    time.sleep(0.05)
 
     high = i2c_bus.read_byte_data(address, 2)
     low  = i2c_bus.read_byte_data(address, 3)
