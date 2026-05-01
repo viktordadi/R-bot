@@ -6,19 +6,6 @@ import time
 import random
 
 
-def run_servo():
-    servo
-
-def run_sensor():
-    while True:
-        print(srf02.get_front_status())
-        time.sleep(0.05)
-
-# keyra bæði í bakgrunni
-threading.Thread(target=run_servo, daemon=True).start()
-threading.Thread(target=run_sensor, daemon=True).start()
-
-
 
 bus = smbus.SMBus(1) 
 
@@ -84,49 +71,54 @@ def stop():
     send_to_motor(0,0)
 
 
-while True:
+def autopilot_step():
     command, dist_L, dist_R = srf02.get_front_status()
 
     if command == "C":
         print("Clear")
         if min(dist_L, dist_R) < 60:
             go_forward_slow()
-        else:   
-            go_forward()
-        """
-    elif get_front_status() [0] == "B":
-        time.sleep(0.1)
-        if get_front_status() [0] == "L" or [1] > [2]:
-            go_right()
-        elif get_front_status() [0] == "R" or [1] < [2]:
-            go_left() 
         else:
-        """
-        """
-    elif command == "B":
-        x = random.randint(0, 1)
-        if x == 1:
-            go_left()
-        if x == 0:
-            go_right()
-        """
+            go_forward()
+
     elif command == "B":
         print("Both")
         go_backwards_slow()
         time.sleep(0.3)
+
         if dist_L > dist_R:
             go_left()
         else:
             go_right()
+
+        time.sleep(0.4)
+        stop()
+
     elif command == "R":
         print("Right")
         go_left_smooth()
+
     elif command == "L":
         print("Left")
         go_right_smooth()
+
     else:
+        print("Error")
         stop()
         time.sleep(0.2)
         go_backwards_slow()
+        time.sleep(0.3)
+        stop()
 
-    time.sleep(0.1)
+
+if __name__ == "__main__":
+    try:
+        while True:
+            autopilot_step()
+            time.sleep(0.1)
+
+    except KeyboardInterrupt:
+        print("Stopping robot")
+
+    finally:
+        stop()
