@@ -12,6 +12,3 @@ def scan(sonic=True):
   time.sleep(0.5)
   kit.servo[0].angle = 70
   kit.servo[1].angle = 110
-  
-  
-scan()
