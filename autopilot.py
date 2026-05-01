@@ -21,7 +21,7 @@ bus = smbus.SMBus(1)
 Motor_address = 0x50 
 
 # upphafs skilirði:
-motor_speed = 70
+motor_speed = 100
 
 
 
@@ -111,7 +111,7 @@ def autopilot_step():
         stop()
         time.sleep(0.2)
         go_backwards_slow()
-        time.sleep(0.3)
+        time.sleep(1)
         stop()
 
 
