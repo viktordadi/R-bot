@@ -1,7 +1,7 @@
 import smbus
 import time
 import random
-from srf02.py import get_front_status    
+from srf02 import get_front_status  
 bus = smbus.SMBus(1) 
 
 # addressa fyrir motor (hex yfir í decimal)
