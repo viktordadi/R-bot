@@ -5,6 +5,14 @@ import smbus
 import time
 import random
 
+i2c_lock = threading.Lock()
+
+def servo_loop():
+    while True:
+        with i2c_lock:
+            servo.scan()
+        time.sleep(0.1)
+threading.Thread(target=servo_loop, daemon=True).start()
 
 
 bus = smbus.SMBus(1) 
@@ -13,7 +21,7 @@ bus = smbus.SMBus(1)
 Motor_address = 0x50 
 
 # upphafs skilirði:
-motor_speed = 100
+motor_speed = 70
 
 
 
@@ -67,7 +75,8 @@ def stop():
 
 
 def autopilot_step():
-    command, dist_L, dist_R = srf02.get_front_status()
+    with i2c_lock:
+        command, dist_L, dist_R = srf02.get_front_status()
 
     if command == "C":
         print("Clear")
