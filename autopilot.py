@@ -13,7 +13,7 @@ bus = smbus.SMBus(1)
 Motor_address = 0x50 
 
 # upphafs skilirði:
-motor_speed = 70
+motor_speed = 100
 
 
 
