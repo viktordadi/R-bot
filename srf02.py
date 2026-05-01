@@ -25,18 +25,19 @@ def filter_distance(distance):
 
 
 def scan_one(address):
-    '''Skannar einn skynjara'''
+    try:
+        i2c_bus.write_byte_data(address, 0, 0x51)
+        time.sleep(0.075)
 
-    i2c_bus.write_byte_data(address, 0, 0x51)
-    time.sleep(0.05)
+        high = i2c_bus.read_byte_data(address, 2)
+        low  = i2c_bus.read_byte_data(address, 3)
 
-    high = i2c_bus.read_byte_data(address, 2)
-    low  = i2c_bus.read_byte_data(address, 3)
+        distance = high * 256 + low
+        return filter_distance(distance)
 
-    distance = high * 256 + low
-
-    return filter_distance(distance)
-
+    except OSError as e:
+        print(f"I2C error on sensor 0x{address:02X}: {e}")
+        return None
 
 def scan_both():
     '''Skannar báða skynjara EKKI á sama tíma (forðast truflun)'''
@@ -66,7 +67,7 @@ def get_front_status(limit=40):
 
 
     if r_dis is None or l_dis is None:
-        return "E"
+        return "E", 9999, 9999
 
     if r_dis <= limit and l_dis <= limit:
         return 'B', l_dis, r_dis
