@@ -76,10 +76,3 @@ def get_front_status(limit=40):
         return "L", l_dis, r_dis
     else:
         return "C", l_dis, r_dis
-
-
-# Test loop
-while True:
-    status = get_front_status()
-    print("Status:", status)
-    time.sleep(0.05)
