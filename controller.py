@@ -9,10 +9,10 @@ I2C_ADDRESS = 0x50
 bus = smbus.SMBus(1)
 
 # Speed settings
-MAX_SPEED = 100      # max forward/backward speed, 0-255
-TURN_SPEED = 70      # steering strength
+MAX_SPEED = 160      # max forward/backward speed, 0-255
+TURN_SPEED = 90      # steering strength
 DEADZONE = 0.08      # joystick deadzone
-TRIGGER_DEADZONE = 0.05  # ignore small trigger noise
+TRIGGER_DEADZONE = 0.08  # ignore small trigger noise
 FRONT_STOP_DISTANCE_CM = 40  # stop forward movement if SRF02 sees an object this close
 
 # PS5 DualSense common mappings in pygame
@@ -23,7 +23,17 @@ R2_AXIS = 5
 # Common DualSense button mapping:
 # Cross/X = 0
 # Circle  = 1
+# L1      = 4
 CIRCLE_BUTTON = 1
+L1_BUTTON = 4
+
+# L2 mapping was tested on this controller and is axis 2.
+# Set this to False if you want to temporarily use L1 for backward again.
+USE_L2_FOR_BACKWARD = True
+BACKWARD_BUTTON = L1_BUTTON
+
+# Set to True temporarily if R2 still acts strange; prints raw trigger values.
+DEBUG_TRIGGERS = False
 
 
 def clamp(value, min_value, max_value):
@@ -43,10 +53,11 @@ def trigger_to_0_1(value, idle_value=-1.0):
     Different pygame/controller setups report trigger rest position differently:
       rest=-1, pressed=+1
       rest=+1, pressed=-1
-      rest=0,  pressed=+1
+      rest=0,  pressed=+1 OR pressed=-1
 
-    idle_value is measured when the program starts so the robot does not
-    start moving by itself if a trigger axis is reversed or offset.
+    The older version assumed that rest=0 always pressed toward +1.
+    On some PS5 mappings R2 can move the other way, which made it look like
+    R2 randomly stopped working. This version handles both directions.
     """
     if idle_value >= 0.5:
         # Rest is near +1, pressed moves toward -1
@@ -55,8 +66,8 @@ def trigger_to_0_1(value, idle_value=-1.0):
         # Rest is near -1, pressed moves toward +1
         pressed = (value - idle_value) / (1.0 - idle_value)
     else:
-        # Rest is near 0, pressed usually moves toward +1
-        pressed = value - idle_value
+        # Rest is near 0. Some systems move toward +1, others toward -1.
+        pressed = abs(value - idle_value)
 
     pressed = clamp(pressed, 0.0, 1.0)
     if pressed < TRIGGER_DEADZONE:
@@ -110,7 +121,10 @@ def main():
     print()
     print("Controls:")
     print("  R2 = forward")
-    print("  L2 = backward")
+    if USE_L2_FOR_BACKWARD:
+        print("  L2 = backward")
+    else:
+        print("  L1 = backward (L2 disabled)")
     print("  Left joystick = steering")
     print("  Circle = stop and quit")
     print()
@@ -123,12 +137,17 @@ def main():
         pygame.event.pump()
         time.sleep(0.02)
 
-    l2_idle = controller.get_axis(L2_AXIS)
+    l2_idle = controller.get_axis(L2_AXIS) if USE_L2_FOR_BACKWARD else 0.0
     r2_idle = controller.get_axis(R2_AXIS)
-    print(f"Trigger idle calibration: L2={l2_idle:.2f}, R2={r2_idle:.2f}")
+    if USE_L2_FOR_BACKWARD:
+        print(f"Trigger idle calibration: L2={l2_idle:.2f}, R2={r2_idle:.2f}")
+    else:
+        print(f"Trigger idle calibration: R2={r2_idle:.2f}")
+        print("L2 is disabled. Use L1 for backward.")
 
     running = True
     last_front_status = None
+    last_trigger_debug = 0
 
     try:
         while running:
@@ -138,15 +157,30 @@ def main():
             steering = controller.get_axis(LEFT_STICK_X_AXIS)
             steering = apply_deadzone(steering)
 
-            # Read triggers
-            l2_raw = controller.get_axis(L2_AXIS)
+            # Read R2 for forward.
             r2_raw = controller.get_axis(R2_AXIS)
-
-            l2 = trigger_to_0_1(l2_raw, l2_idle)
             r2 = trigger_to_0_1(r2_raw, r2_idle)
 
-            # R2 forward, L2 backward
-            throttle = r2 - l2
+            # L2 controls backward when USE_L2_FOR_BACKWARD is enabled.
+            # If needed, set USE_L2_FOR_BACKWARD = False to use L1 instead.
+            if USE_L2_FOR_BACKWARD:
+                l2_raw = controller.get_axis(L2_AXIS)
+                backward = trigger_to_0_1(l2_raw, l2_idle)
+            else:
+                backward = 1.0 if controller.get_button(BACKWARD_BUTTON) else 0.0
+
+            if DEBUG_TRIGGERS and time.time() - last_trigger_debug > 0.5:
+                if USE_L2_FOR_BACKWARD:
+                    print(
+                        f"R2 raw={r2_raw:.2f} value={r2:.2f} | "
+                        f"L2 raw={l2_raw:.2f} value={backward:.2f}"
+                    )
+                else:
+                    print(f"R2 raw={r2_raw:.2f} value={r2:.2f}")
+                last_trigger_debug = time.time()
+
+            # R2 forward, L2 backward. If L2 is disabled, L1 is backward.
+            throttle = r2 - backward
 
             # SRF02 safety stop:
             # If either front sensor sees an object, do not allow forward throttle.
