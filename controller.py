@@ -16,7 +16,7 @@ DEADZONE = 0.08          # joystick deadzone
 TRIGGER_DEADZONE = 0.08  # ignore small trigger noise
 
 # SRF02 front safety settings
-FRONT_LIMIT_CM = 25     # if an object is closer than this, forward is blocked
+FRONT_LIMIT_CM = 30     # if an object is closer than this, forward is blocked
 SENSOR_INTERVAL = 0.15   # seconds between SRF02 checks
 
 # Servo scan settings for moving the SRF02 sensors back and forth
