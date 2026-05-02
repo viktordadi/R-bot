@@ -2,6 +2,7 @@ import time
 import threading
 import smbus
 import pygame
+import servo
 import srf02
 
 # I2C motor controller address
@@ -18,7 +19,15 @@ TRIGGER_DEADZONE = 0.08  # ignore small trigger noise
 FRONT_LIMIT_CM = 40      # if an object is closer than this, forward is blocked
 SENSOR_INTERVAL = 0.15   # seconds between SRF02 checks
 
-# Motors and SRF02 sensors share I2C, so guard I2C access.
+# Servo scan settings for moving the SRF02 sensors back and forth
+SERVO_SCAN_ENABLED = True
+SERVO_INTERVAL = 0.20    # seconds between servo positions
+SERVO0_FORWARD = 105
+SERVO1_FORWARD = 75
+SERVO0_BACK = 70
+SERVO1_BACK = 110
+
+# Motors, SRF02 sensors, and servos share I2C, so guard I2C access.
 i2c_lock = threading.Lock()
 
 # Latest SRF02 status, updated by background thread
@@ -136,6 +145,33 @@ def srf02_loop():
         time.sleep(SENSOR_INTERVAL)
 
 
+def servo_loop():
+    """
+    Moves the SRF02 sensors back and forth in the background.
+
+    The I2C lock is held only while writing servo angles, not while waiting,
+    so controller input and motor commands stay responsive.
+    """
+    while True:
+        if SERVO_SCAN_ENABLED:
+            try:
+                with i2c_lock:
+                    servo.kit.servo[0].angle = SERVO0_FORWARD
+                    servo.kit.servo[1].angle = SERVO1_FORWARD
+                time.sleep(SERVO_INTERVAL)
+
+                with i2c_lock:
+                    servo.kit.servo[0].angle = SERVO0_BACK
+                    servo.kit.servo[1].angle = SERVO1_BACK
+                time.sleep(SERVO_INTERVAL)
+
+            except Exception as e:
+                print("Servo scan error:", e)
+                time.sleep(0.5)
+        else:
+            time.sleep(0.5)
+
+
 def main():
     pygame.init()
     pygame.joystick.init()
@@ -157,6 +193,7 @@ def main():
     print("  Left joystick = steering")
     print("  Circle = stop and quit")
     print("  SRF02 = blocks only forward when object is too close")
+    print("  Servo scan = moves SRF02 sensors back and forth")
     print()
     print("Lift the robot wheels before testing.")
     time.sleep(1)
@@ -172,6 +209,7 @@ def main():
     print(f"Trigger idle calibration: L2={l2_idle:.2f}, R2={r2_idle:.2f}")
 
     threading.Thread(target=srf02_loop, daemon=True).start()
+    threading.Thread(target=servo_loop, daemon=True).start()
 
     running = True
     last_trigger_debug = 0
