@@ -24,9 +24,7 @@ R2_AXIS = 5
 CIRCLE_BUTTON = 1
 
 # L2 mapping was tested on this controller and is axis 2.
-# Set this to False if you want to temporarily use L1 for backward again.
-USE_L2_FOR_BACKWARD = True
-BACKWARD_BUTTON = L1_BUTTON
+# L1 is not used.
 
 # Set to True temporarily if R2 still acts strange; prints raw trigger values.
 DEBUG_TRIGGERS = False
@@ -117,10 +115,7 @@ def main():
     print()
     print("Controls:")
     print("  R2 = forward")
-    if USE_L2_FOR_BACKWARD:
-        print("  L2 = backward")
-    else:
-        print("  L1 = backward (L2 disabled)")
+    print("  L2 = backward")
     print("  Left joystick = steering")
     print("  Circle = stop and quit")
     print()
@@ -133,13 +128,9 @@ def main():
         pygame.event.pump()
         time.sleep(0.02)
 
-    l2_idle = controller.get_axis(L2_AXIS) if USE_L2_FOR_BACKWARD else 0.0
+    l2_idle = controller.get_axis(L2_AXIS)
     r2_idle = controller.get_axis(R2_AXIS)
-    if USE_L2_FOR_BACKWARD:
-        print(f"Trigger idle calibration: L2={l2_idle:.2f}, R2={r2_idle:.2f}")
-    else:
-        print(f"Trigger idle calibration: R2={r2_idle:.2f}")
-        print("L2 is disabled. Use L1 for backward.")
+    print(f"Trigger idle calibration: L2={l2_idle:.2f}, R2={r2_idle:.2f}")
 
     running = True
     last_trigger_debug = 0
@@ -156,25 +147,18 @@ def main():
             r2_raw = controller.get_axis(R2_AXIS)
             r2 = trigger_to_0_1(r2_raw, r2_idle)
 
-            # L2 controls backward when USE_L2_FOR_BACKWARD is enabled.
-            # If needed, set USE_L2_FOR_BACKWARD = False to use L1 instead.
-            if USE_L2_FOR_BACKWARD:
-                l2_raw = controller.get_axis(L2_AXIS)
-                backward = trigger_to_0_1(l2_raw, l2_idle)
-            else:
-                backward = 1.0 if controller.get_button(BACKWARD_BUTTON) else 0.0
+            # L2 controls backward. L1 is not used.
+            l2_raw = controller.get_axis(L2_AXIS)
+            backward = trigger_to_0_1(l2_raw, l2_idle)
 
             if DEBUG_TRIGGERS and time.time() - last_trigger_debug > 0.5:
-                if USE_L2_FOR_BACKWARD:
-                    print(
-                        f"R2 raw={r2_raw:.2f} value={r2:.2f} | "
-                        f"L2 raw={l2_raw:.2f} value={backward:.2f}"
-                    )
-                else:
-                    print(f"R2 raw={r2_raw:.2f} value={r2:.2f}")
+                print(
+                    f"R2 raw={r2_raw:.2f} value={r2:.2f} | "
+                    f"L2 raw={l2_raw:.2f} value={backward:.2f}"
+                )
                 last_trigger_debug = time.time()
 
-            # R2 forward, L2 backward. If L2 is disabled, L1 is backward.
+            # R2 forward, L2 backward.
             throttle = r2 - backward
 
             # Your robot motor mapping:
