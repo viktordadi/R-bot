@@ -12,6 +12,7 @@ bus = smbus.SMBus(1)
 MAX_SPEED = 160      # max forward/backward speed, 0-255
 TURN_SPEED = 90      # steering strength
 DEADZONE = 0.08      # joystick deadzone
+TRIGGER_DEADZONE = 0.05  # ignore small trigger noise
 FRONT_STOP_DISTANCE_CM = 40  # stop forward movement if SRF02 sees an object this close
 
 # PS5 DualSense common mappings in pygame
@@ -35,17 +36,32 @@ def apply_deadzone(value):
     return value
 
 
-def trigger_to_0_1(value):
+def trigger_to_0_1(value, idle_value=-1.0):
     """
-    Many controllers report triggers as:
-    not pressed = -1.0
-    fully pressed = 1.0
+    Converts trigger axis value to 0.0 - 1.0.
 
-    This converts that to:
-    not pressed = 0.0
-    fully pressed = 1.0
+    Different pygame/controller setups report trigger rest position differently:
+      rest=-1, pressed=+1
+      rest=+1, pressed=-1
+      rest=0,  pressed=+1
+
+    idle_value is measured when the program starts so the robot does not
+    start moving by itself if a trigger axis is reversed or offset.
     """
-    return (value + 1.0) / 2.0
+    if idle_value >= 0.5:
+        # Rest is near +1, pressed moves toward -1
+        pressed = (idle_value - value) / (idle_value + 1.0)
+    elif idle_value <= -0.5:
+        # Rest is near -1, pressed moves toward +1
+        pressed = (value - idle_value) / (1.0 - idle_value)
+    else:
+        # Rest is near 0, pressed usually moves toward +1
+        pressed = value - idle_value
+
+    pressed = clamp(pressed, 0.0, 1.0)
+    if pressed < TRIGGER_DEADZONE:
+        return 0.0
+    return pressed
 
 
 def send_motors(m1, m2):
@@ -98,12 +114,18 @@ def main():
     print("  Left joystick = steering")
     print("  Circle = stop and quit")
     print()
-    print("SRF02 safety stop enabled:")
-    print(f"  Object <= {FRONT_STOP_DISTANCE_CM} cm blocks forward movement")
-    print("  Backward, left and right turning still work")
-    print()
     print("Lift the robot wheels before testing.")
     time.sleep(1)
+
+    # Let pygame receive the first stable controller state, then calibrate
+    # the trigger rest positions. Do not touch L2/R2 while this starts.
+    for _ in range(10):
+        pygame.event.pump()
+        time.sleep(0.02)
+
+    l2_idle = controller.get_axis(L2_AXIS)
+    r2_idle = controller.get_axis(R2_AXIS)
+    print(f"Trigger idle calibration: L2={l2_idle:.2f}, R2={r2_idle:.2f}")
 
     running = True
     last_front_status = None
@@ -120,8 +142,8 @@ def main():
             l2_raw = controller.get_axis(L2_AXIS)
             r2_raw = controller.get_axis(R2_AXIS)
 
-            l2 = trigger_to_0_1(l2_raw)
-            r2 = trigger_to_0_1(r2_raw)
+            l2 = trigger_to_0_1(l2_raw, l2_idle)
+            r2 = trigger_to_0_1(r2_raw, r2_idle)
 
             # R2 forward, L2 backward
             throttle = r2 - l2
