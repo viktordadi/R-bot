@@ -2,6 +2,8 @@ import time
 import smbus
 import pygame
 
+from srf02 import get_front_status
+
 # I2C motor controller address
 I2C_ADDRESS = 0x50
 bus = smbus.SMBus(1)
@@ -10,6 +12,7 @@ bus = smbus.SMBus(1)
 MAX_SPEED = 160      # max forward/backward speed, 0-255
 TURN_SPEED = 90      # steering strength
 DEADZONE = 0.08      # joystick deadzone
+FRONT_STOP_DISTANCE_CM = 40  # stop forward movement if SRF02 sees an object this close
 
 # PS5 DualSense common mappings in pygame
 LEFT_STICK_X_AXIS = 0
@@ -95,10 +98,15 @@ def main():
     print("  Left joystick = steering")
     print("  Circle = stop and quit")
     print()
+    print("SRF02 safety stop enabled:")
+    print(f"  Object <= {FRONT_STOP_DISTANCE_CM} cm blocks forward movement")
+    print("  Backward, left and right turning still work")
+    print()
     print("Lift the robot wheels before testing.")
     time.sleep(1)
 
     running = True
+    last_front_status = None
 
     try:
         while running:
@@ -117,6 +125,26 @@ def main():
 
             # R2 forward, L2 backward
             throttle = r2 - l2
+
+            # SRF02 safety stop:
+            # If either front sensor sees an object, do not allow forward throttle.
+            # Backward and in-place left/right turning still work so the robot can escape.
+            front_status, left_cm, right_cm = get_front_status(FRONT_STOP_DISTANCE_CM)
+            front_blocked = front_status in ("B", "L", "R")
+
+            if front_blocked and throttle > 0:
+                throttle = 0
+                if front_status != last_front_status:
+                    print(
+                        f"Front blocked ({front_status}) "
+                        f"L={left_cm}cm R={right_cm}cm - forward disabled"
+                    )
+            elif front_status == "C" and last_front_status != "C":
+                print(f"Front clear L={left_cm}cm R={right_cm}cm - forward enabled")
+            elif front_status == "E" and last_front_status != "E":
+                print("SRF02 sensor error - check I2C/sensor wiring")
+
+            last_front_status = front_status
 
             # Your robot motor mapping:
             # forward  = send_motors(+speed, -speed)
@@ -145,7 +173,7 @@ def main():
 
     except OSError as e:
         print("I2C error:", e)
-        print("Check that i2cdetect -y 1 shows 0x50.")
+        print("Check that i2cdetect -y 1 shows 0x50 and SRF02 addresses 0x70/0x71.")
 
     finally:
         stop_motors()
