@@ -21,9 +21,7 @@ R2_AXIS = 5
 # Common DualSense button mapping:
 # Cross/X = 0
 # Circle  = 1
-# L1      = 4
 CIRCLE_BUTTON = 1
-L1_BUTTON = 4
 
 # L2 mapping was tested on this controller and is axis 2.
 # Set this to False if you want to temporarily use L1 for backward again.
