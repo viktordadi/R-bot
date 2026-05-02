@@ -1,19 +1,33 @@
 import time
+import threading
 import smbus
 import pygame
-
+import srf02
 
 # I2C motor controller address
 I2C_ADDRESS = 0x50
 bus = smbus.SMBus(1)
 
 # Speed settings
-MAX_SPEED = 160      # max forward/backward speed, 0-255
-TURN_SPEED = 90      # steering strength
-DEADZONE = 0.08      # joystick deadzone
+MAX_SPEED = 160          # max forward/backward speed, 0-255
+TURN_SPEED = 90          # steering strength
+DEADZONE = 0.08          # joystick deadzone
 TRIGGER_DEADZONE = 0.08  # ignore small trigger noise
 
-# PS5 DualSense common mappings in pygame
+# SRF02 front safety settings
+FRONT_LIMIT_CM = 40      # if an object is closer than this, forward is blocked
+SENSOR_INTERVAL = 0.15   # seconds between SRF02 checks
+
+# Motors and SRF02 sensors share I2C, so guard I2C access.
+i2c_lock = threading.Lock()
+
+# Latest SRF02 status, updated by background thread
+front_status = "C"       # C=clear, B=both, L=left, R=right, E=error
+front_left_cm = 9999
+front_right_cm = 9999
+front_blocked = False
+
+# PS5 DualSense mappings tested on this controller
 LEFT_STICK_X_AXIS = 0
 L2_AXIS = 2
 R2_AXIS = 5
@@ -23,10 +37,7 @@ R2_AXIS = 5
 # Circle  = 1
 CIRCLE_BUTTON = 1
 
-# L2 mapping was tested on this controller and is axis 2.
-# L1 is not used.
-
-# Set to True temporarily if R2 still acts strange; prints raw trigger values.
+# Set to True temporarily if R2/L2 still act strange; prints raw trigger values.
 DEBUG_TRIGGERS = False
 
 
@@ -48,10 +59,6 @@ def trigger_to_0_1(value, idle_value=-1.0):
       rest=-1, pressed=+1
       rest=+1, pressed=-1
       rest=0,  pressed=+1 OR pressed=-1
-
-    The older version assumed that rest=0 always pressed toward +1.
-    On some PS5 mappings R2 can move the other way, which made it look like
-    R2 randomly stopped working. This version handles both directions.
     """
     if idle_value >= 0.5:
         # Rest is near +1, pressed moves toward -1
@@ -88,7 +95,8 @@ def send_motors(m1, m2):
     m2_sign = 0 if m2 >= 0 else 1
 
     data = [m1_speed, m1_sign, m2_speed, m2_sign]
-    bus.write_i2c_block_data(I2C_ADDRESS, 0x00, data)
+    with i2c_lock:
+        bus.write_i2c_block_data(I2C_ADDRESS, 0x00, data)
 
 
 def stop_motors():
@@ -96,6 +104,36 @@ def stop_motors():
         send_motors(0, 0)
     except Exception as e:
         print("Could not stop motors:", e)
+
+
+def srf02_loop():
+    """
+    Reads both SRF02 sensors in the background.
+
+    This is not autopilot. It only sets front_blocked=True when the sensors
+    detect something too close. The main controller loop then blocks only
+    forward throttle; backward and left/right steering still work.
+    """
+    global front_status, front_left_cm, front_right_cm, front_blocked
+
+    while True:
+        try:
+            with i2c_lock:
+                status, left_cm, right_cm = srf02.get_front_status(limit=FRONT_LIMIT_CM)
+
+            front_status = status
+            front_left_cm = left_cm
+            front_right_cm = right_cm
+            front_blocked = status in ("B", "L", "R")
+
+        except Exception as e:
+            print("SRF02 error:", e)
+            front_status = "E"
+            front_left_cm = 9999
+            front_right_cm = 9999
+            front_blocked = False
+
+        time.sleep(SENSOR_INTERVAL)
 
 
 def main():
@@ -118,6 +156,7 @@ def main():
     print("  L2 = backward")
     print("  Left joystick = steering")
     print("  Circle = stop and quit")
+    print("  SRF02 = blocks only forward when object is too close")
     print()
     print("Lift the robot wheels before testing.")
     time.sleep(1)
@@ -132,8 +171,12 @@ def main():
     r2_idle = controller.get_axis(R2_AXIS)
     print(f"Trigger idle calibration: L2={l2_idle:.2f}, R2={r2_idle:.2f}")
 
+    threading.Thread(target=srf02_loop, daemon=True).start()
+
     running = True
     last_trigger_debug = 0
+    last_front_message = 0
+    last_clear_message = 0
 
     try:
         while running:
@@ -143,23 +186,38 @@ def main():
             steering = controller.get_axis(LEFT_STICK_X_AXIS)
             steering = apply_deadzone(steering)
 
-            # Read R2 for forward.
+            # Read triggers
             r2_raw = controller.get_axis(R2_AXIS)
-            r2 = trigger_to_0_1(r2_raw, r2_idle)
-
-            # L2 controls backward. L1 is not used.
             l2_raw = controller.get_axis(L2_AXIS)
-            backward = trigger_to_0_1(l2_raw, l2_idle)
+
+            r2 = trigger_to_0_1(r2_raw, r2_idle)
+            l2 = trigger_to_0_1(l2_raw, l2_idle)
 
             if DEBUG_TRIGGERS and time.time() - last_trigger_debug > 0.5:
                 print(
                     f"R2 raw={r2_raw:.2f} value={r2:.2f} | "
-                    f"L2 raw={l2_raw:.2f} value={backward:.2f}"
+                    f"L2 raw={l2_raw:.2f} value={l2:.2f}"
                 )
                 last_trigger_debug = time.time()
 
-            # R2 forward, L2 backward.
-            throttle = r2 - backward
+            # R2 forward, L2 backward
+            throttle = r2 - l2
+
+            # SRF02 safety:
+            # If either/both front sensors see something too close, do not
+            # allow forward throttle. Backward and turning still work.
+            if throttle > 0 and front_blocked:
+                throttle = 0.0
+                if time.time() - last_front_message > 0.5:
+                    print(
+                        f"Forward blocked by SRF02: status={front_status}, "
+                        f"L={front_left_cm} cm, R={front_right_cm} cm"
+                    )
+                    last_front_message = time.time()
+            elif front_status == "C" and time.time() - last_clear_message > 2.0:
+                # Occasional status so you can see the sensors are alive.
+                print(f"Front clear: L={front_left_cm} cm, R={front_right_cm} cm")
+                last_clear_message = time.time()
 
             # Your robot motor mapping:
             # forward  = send_motors(+speed, -speed)
@@ -188,7 +246,7 @@ def main():
 
     except OSError as e:
         print("I2C error:", e)
-        print("Check that i2cdetect -y 1 shows 0x50.")
+        print("Check that i2cdetect -y 1 shows motor 0x50 and SRF02 0x70/0x71.")
 
     finally:
         stop_motors()
