@@ -9,15 +9,15 @@ I2C_ADDRESS = 0x50
 bus = smbus.SMBus(1)
 
 # Speed settings
-MAX_SPEED = 160      # max forward/backward speed, 0-255
-TURN_SPEED = 90      # steering strength
+MAX_SPEED = 100      # max forward/backward speed, 0-255
+TURN_SPEED = 70      # steering strength
 DEADZONE = 0.08      # joystick deadzone
 TRIGGER_DEADZONE = 0.05  # ignore small trigger noise
 FRONT_STOP_DISTANCE_CM = 40  # stop forward movement if SRF02 sees an object this close
 
 # PS5 DualSense common mappings in pygame
 LEFT_STICK_X_AXIS = 0
-L2_AXIS = 4
+L2_AXIS = 2
 R2_AXIS = 5
 
 # Common DualSense button mapping:
