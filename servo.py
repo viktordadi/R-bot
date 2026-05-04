@@ -4,6 +4,6 @@ from adafruit_servokit import ServoKit
 kit = ServoKit(channels=8)
 
 def scan(sonic=True):
-  kit.servo[0].angle = 90
-  kit.servo[1].angle = 90
+  kit.servo[0].angle = 80
+  kit.servo[1].angle = 80
 
