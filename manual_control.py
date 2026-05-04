@@ -8,33 +8,53 @@ I2C_ADDRESS = 0x50
 bus = smbus.SMBus(1)
 
 SPEED = 70
-TURN_SPEED = SPEED * (2/3)
+TURN_SPEED = SPEED * (2 / 3)
 
 
-def send_motors(m1, m2):
+def clamp(value, min_value=-255, max_value=255):
+    return max(min_value, min(max_value, int(value)))
+
+
+def motor_to_bytes(value):
+    value = clamp(value)
+    speed = abs(value)
+    sign = 0 if value >= 0 else 1
+    return speed, sign
+
+
+def send_motors(m1, m2, m3, m4):
     """
-    m1/m2 range:
+    Motor values:
       -255 = reverse
          0 = stop
        255 = forward
+
+    Expected robot layout:
+      m1 = front left
+      m2 = front right
+      m3 = rear left
+      m4 = rear right
     """
-    m1 = max(-255, min(255, int(m1)))
-    m2 = max(-255, min(255, int(m2)))
 
-    m1_speed = abs(m1)
-    m1_sign = 0 if m1 >= 0 else 1
+    m1_speed, m1_sign = motor_to_bytes(m1)
+    m2_speed, m2_sign = motor_to_bytes(m2)
+    m3_speed, m3_sign = motor_to_bytes(m3)
+    m4_speed, m4_sign = motor_to_bytes(m4)
 
-    m2_speed = abs(m2)
-    m2_sign = 0 if m2 >= 0 else 1
+    data = [
+        m1_speed, m1_sign,
+        m2_speed, m2_sign,
+        m3_speed, m3_sign,
+        m4_speed, m4_sign
+    ]
 
-    data = [m1_speed, m1_sign, m2_speed, m2_sign]
     bus.write_i2c_block_data(I2C_ADDRESS, 0x00, data)
     time.sleep(0.03)
 
 
 def stop():
     try:
-        send_motors(0, 0)
+        send_motors(0, 0, 0, 0)
     except Exception as e:
         print("Could not stop motors:", e)
 
@@ -52,8 +72,8 @@ def get_key():
     return key
 
 
-print("WASD motor control")
-print("------------------")
+print("WASD 4-motor control")
+print("--------------------")
 print("W = forward")
 print("S = backward")
 print("A = turn left")
@@ -71,19 +91,20 @@ try:
         key = get_key().lower()
 
         if key == "w":
-            send_motors(SPEED, -SPEED)
+            # left motors forward, right motors forward
+            send_motors(SPEED, -SPEED, SPEED, -SPEED)
             print("Forward")
 
         elif key == "s":
-            send_motors(-SPEED, SPEED)
+            send_motors(-SPEED, SPEED, -SPEED, SPEED)
             print("Backward")
 
         elif key == "a":
-            send_motors(-TURN_SPEED, -TURN_SPEED)
+            send_motors(-TURN_SPEED, -TURN_SPEED, -TURN_SPEED, -TURN_SPEED)
             print("Left")
 
         elif key == "d":
-            send_motors(TURN_SPEED, TURN_SPEED)
+            send_motors(TURN_SPEED, TURN_SPEED, TURN_SPEED, TURN_SPEED)
             print("Right")
 
         elif key == "x" or key == " ":
@@ -92,12 +113,12 @@ try:
 
         elif key == "+" or key == "=":
             SPEED = min(255, SPEED + 10)
-            TURN_SPEED = min(255, TURN_SPEED + 10)
+            TURN_SPEED = SPEED * (2 / 3)
             print(f"Speed: {SPEED}")
 
         elif key == "-" or key == "_":
             SPEED = max(0, SPEED - 10)
-            TURN_SPEED = max(0, TURN_SPEED - 10)
+            TURN_SPEED = SPEED * (2 / 3)
             print(f"Speed: {SPEED}")
 
         elif key == "q":
