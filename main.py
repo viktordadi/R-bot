@@ -12,7 +12,7 @@ Handstýring:
 
 import time
 import pygame
-
+import manual_control
 import controller
 import autopilot
 
