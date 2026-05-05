@@ -1,25 +1,18 @@
+@@ -1,128 +1,128 @@
 import threading
 import servo
 import srf02
 import smbus
 import time
 import random
-import audio
-
-scanning = True
 
 i2c_lock = threading.Lock()
 
 def servo_loop():
-    global scanning
-
     while True:
-        if scanning:
-            with i2c_lock:
-                servo.scan()
+        with i2c_lock:
+            servo.scan()
         time.sleep(0.05)
-
-
 threading.Thread(target=servo_loop, daemon=True).start()
 
 
@@ -29,7 +22,8 @@ bus = smbus.SMBus(1)
 Motor_address = 0x50 
 
 # upphafs skilirði:
-motor_speed = 240
+motor_speed = 180
+motor_speed = 100
 
 
 
@@ -45,13 +39,13 @@ def send_to_motor(m1, m2):
     m2_speed = abs(m2)
     m2_sign = 0 if m2 >= 0 else 1
     data = [m1_speed, m1_sign, m2_speed, m2_sign]
-  
+
   # senda gogn yfir a T2C med smbus pakkanum
     bus.write_i2c_block_data(Motor_address,0x00,data)
 #------------------------------------------------------
 
 
-  
+
 
 # skilgreina skipanir
 def go_forward():
@@ -81,34 +75,13 @@ def go_left_smooth():
 def stop():
     send_to_motor(0,0)
 
-def turn_until_clear(direction):
-    while True:
-        with i2c_lock:
-            command, dist_L, dist_R = srf02.get_front_status()
-
-        if command == "C":
-            stop()
-            time.sleep(0.1)
-            break
-
-        if direction == "left":
-            go_left_smooth()
-        else:
-            go_right_smooth()
-
-        time.sleep(0.1)
-
 
 def autopilot_step():
-    global scanning
-
     with i2c_lock:
         command, dist_L, dist_R = srf02.get_front_status()
 
     if command == "C":
         print("Clear")
-        scanning = True
-
         if min(dist_L, dist_R) < 60:
             go_forward_slow()
         else:
@@ -116,48 +89,33 @@ def autopilot_step():
 
     elif command == "B":
         print("Both")
-        scanning = False
-
-        with i2c_lock:
-            servo.detect()
-            time.sleep(0.1)
-
         go_backwards_slow()
         time.sleep(0.3)
 
         if dist_L > dist_R:
-            turn_until_clear("left")
+            go_left()
         else:
-            turn_until_clear("right")
+            go_right()
 
-        scanning = True
+        time.sleep(0.4)
+        stop()
 
     elif command == "R":
         print("Right")
-        scanning = False
-
-        with i2c_lock:
-            servo.detect()
-            time.sleep(0.1)
-
-        turn_until_clear("left")
-        scanning = True
+        go_left_smooth()
 
     elif command == "L":
         print("Left")
-        scanning = False
-
-        with i2c_lock:
-            servo.detect()
-            time.sleep(0.1)
-
-        turn_until_clear("right")
-        scanning = True
+        go_right_smooth()
 
     else:
         print("Error")
         stop()
         time.sleep(0.2)
+        go_backwards_slow()
+        time.sleep(2)
+        stop()
+
 
 if __name__ == "__main__":
     try:
@@ -170,4 +128,3 @@ if __name__ == "__main__":
 
     finally:
         stop()
-
