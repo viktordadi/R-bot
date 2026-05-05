@@ -3,8 +3,8 @@ from smbus2 import SMBus
 
 i2c_bus = SMBus(1)
 
-sonic_r = 0x70
-sonic_l = 0x71
+sonic_r = 0x71
+sonic_l = 0x70
 
 
 
