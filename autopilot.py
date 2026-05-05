@@ -6,13 +6,20 @@ import time
 import random
 import audio
 
+scanning = True
+
 i2c_lock = threading.Lock()
 
 def servo_loop():
+    global scanning
+
     while True:
-        with i2c_lock:
-            servo.scan()
+        if scanning:
+            with i2c_lock:
+                servo.scan()
         time.sleep(0.05)
+
+
 threading.Thread(target=servo_loop, daemon=True).start()
 
 
@@ -86,17 +93,22 @@ def turn_until_clear(direction):
 
         if direction == "left":
             go_left_smooth()
-        elif direction == "right":
+        else:
             go_right_smooth()
 
         time.sleep(0.1)
 
+
 def autopilot_step():
+    global scanning
+
     with i2c_lock:
         command, dist_L, dist_R = srf02.get_front_status()
 
     if command == "C":
         print("Clear")
+        scanning = True
+
         if min(dist_L, dist_R) < 60:
             go_forward_slow()
         else:
@@ -104,6 +116,12 @@ def autopilot_step():
 
     elif command == "B":
         print("Both")
+        scanning = False
+
+        with i2c_lock:
+            servo.detect()
+            time.sleep(0.1)
+
         go_backwards_slow()
         time.sleep(0.3)
 
@@ -112,21 +130,34 @@ def autopilot_step():
         else:
             turn_until_clear("right")
 
+        scanning = True
+
     elif command == "R":
         print("Right")
+        scanning = False
+
+        with i2c_lock:
+            servo.detect()
+            time.sleep(0.1)
+
         turn_until_clear("left")
+        scanning = True
 
     elif command == "L":
         print("Left")
+        scanning = False
+
+        with i2c_lock:
+            servo.detect()
+            time.sleep(0.1)
+
         turn_until_clear("right")
+        scanning = True
 
     else:
         print("Error")
         stop()
         time.sleep(0.2)
-        go_backwards_slow()
-        time.sleep(2)
-        stop()
 
 if __name__ == "__main__":
     try:
