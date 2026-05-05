@@ -117,8 +117,7 @@ def main():
             time.sleep(LOOP_DELAY)
 
     except KeyboardInterrupt:
-        print("
-KeyboardInterrupt. Stopping robot.")
+        print("KeyboardInterrupt. Stopping robot.")
 
     finally:
         autopilot.stop()
