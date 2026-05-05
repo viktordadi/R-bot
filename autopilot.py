@@ -74,20 +74,13 @@ def go_left_smooth():
 def stop():
     send_to_motor(0,0)
 
-last_command = None
 
 def autopilot_step():
-    global last_command
-
     with i2c_lock:
         command, dist_L, dist_R = srf02.get_front_status()
 
     if command == "C":
         print("Clear")
-
-        if last_command != "C":
-           # audio.rain_over_me()
-
         if min(dist_L, dist_R) < 60:
             go_forward_slow()
         else:
@@ -95,10 +88,6 @@ def autopilot_step():
 
     elif command == "B":
         print("Both")
-
-        if last_command != "B":
-            # audio.mr_worldwide()
-
         go_backwards_slow()
         time.sleep(0.3)
 
@@ -125,8 +114,6 @@ def autopilot_step():
         go_backwards_slow()
         time.sleep(2)
         stop()
-
-    last_command = command
 
 
 if __name__ == "__main__":
