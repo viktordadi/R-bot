@@ -106,7 +106,7 @@ def manual_step():
         m2 = -throttle*motor_speed + steering*motor_speed*0.6   
         with i2c_lock:
             send_to_motor(m1, m2)
-
+    return True
 
 # aðallykkja sem kallar á fallið
 try:
