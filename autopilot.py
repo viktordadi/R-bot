@@ -49,7 +49,7 @@ def send_to_motor(m1, m2):
 # skilgreina skipanir
 def go_forward():
     send_to_motor(motor_speed, -motor_speed)
-    rain_over_me()
+    audio.rain_over_me()
 
 def go_forward_slow():
     send_to_motor(motor_speed*0.6, -motor_speed*0.6)
@@ -88,7 +88,7 @@ def autopilot_step():
             go_forward()
 
     elif command == "B":
-        mr_worldwide()
+        audio.mr_worldwide()
         print("Both")
         go_backwards_slow()
         time.sleep(0.3)
