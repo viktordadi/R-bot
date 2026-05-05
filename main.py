@@ -1,3 +1,4 @@
+
 """
 Takkar:
   X / Cross      = manual / handstýring
@@ -46,7 +47,7 @@ def button_pressed(button):
     return False
 
 def close():
-    controller.close_controller()
+    manual_control.close()
 
 def main():
     mode = MODE_STOPPED
@@ -58,9 +59,9 @@ def main():
         while True:
             # Lesum bara mode-takkana hér.
             # Sjálf handstýringin er inni í manual_control.manual_step().
-            manual_pressed = manual_control.button_pressed(CROSS_BUTTON)
-            autopilot_pressed = manual_control.button_pressed(TRIANGLE_BUTTON)
-            stop_pressed = manual_control.button_pressed(CIRCLE_BUTTON)
+            manual_pressed = button_pressed(CROSS_BUTTON)
+            autopilot_pressed = button_pressed(TRIANGLE_BUTTON)
+            stop_pressed = button_pressed(CIRCLE_BUTTON)
 
             if stop_pressed:
                 print("Stop button pressed. Stopping robot.")
