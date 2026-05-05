@@ -4,6 +4,7 @@ import srf02
 import smbus
 import time
 import random
+import audio
 
 i2c_lock = threading.Lock()
 
