@@ -1,113 +1,119 @@
+import threading
+import servo
+import srf02
 import smbus
+import controller
+import pygame
 import time
-import sys
-import termios
-import tty
-
-I2C_ADDRESS = 0x50
+import random
 bus = smbus.SMBus(1)
+i2c_lock = threading.Lock()
+ctrl, l2_idle, r2_idle = controller.setup_controller()
 
-SPEED = 70
-TURN_SPEED = SPEED * (2/3)
 
 
-def send_motors(m1, m2):
-    """
-    m1/m2 range:
-      -255 = reverse
-         0 = stop
-       255 = forward
-    """
+
+
+def servo_loop():
+    while True:
+        with i2c_lock:
+            servo.scan()
+        time.sleep(0.05)
+threading.Thread(target=servo_loop, daemon=True).start()
+
+
+ 
+
+# addressa fyrir motor (hex yfir í decimal)
+Motor_address = 0x50 
+
+# upphafs skilirði:
+motor_speed = 255
+
+
+
+#-------------------------------------------
+# senda upplysingar yfir yfir i I2C/motor
+def send_to_motor(m1, m2):
+# breytir gildum sem eru fyrir utan (-255 og 255)
     m1 = max(-255, min(255, int(m1)))
-    m2 = max(-255, min(255, int(m2)))
-
+    m2 = max(-255, min(255, int(m2))) 
+    
+# splitar hrada + stefnu 
     m1_speed = abs(m1)
     m1_sign = 0 if m1 >= 0 else 1
-
     m2_speed = abs(m2)
     m2_sign = 0 if m2 >= 0 else 1
-
     data = [m1_speed, m1_sign, m2_speed, m2_sign]
-    bus.write_i2c_block_data(I2C_ADDRESS, 0x00, data)
-    time.sleep(0.03)
+  
+  # senda gogn yfir a T2C med smbus pakkanum
+    bus.write_i2c_block_data(Motor_address,0x00,data)
+#------------------------------------------------------
 
+
+  
+
+# skilgreina skipanir
+def go_forward():
+    send_to_motor(motor_speed, -motor_speed)
+
+def go_forward_slow():
+    send_to_motor(motor_speed*0.6, -motor_speed*0.6)
+
+def go_backwards():
+    send_to_motor(-motor_speed, motor_speed)
+
+def go_backwards_slow():
+    send_to_motor(-motor_speed*0.6, motor_speed*0.6)
+
+def go_right():
+    send_to_motor(motor_speed, motor_speed)
+
+def go_right_smooth():
+    send_to_motor(motor_speed*0.7, -motor_speed*0.2)
+
+def go_left():
+    send_to_motor(-motor_speed, -motor_speed)
+
+def go_left_smooth():
+    send_to_motor(motor_speed*0.2, -motor_speed*0.7)
 
 def stop():
-    try:
-        send_motors(0, 0)
-    except Exception as e:
-        print("Could not stop motors:", e)
+    send_to_motor(0,0)
 
 
-def get_key():
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
+def manual_step():
+    # les skynjar og stjórnar 
+    # with I2c_lock tryggir að aðeins eitt fall talar við I2C
+    with i2c_lock:
+        command, dist_L, dist_R = srf02.get_front_status(25)
 
-    try:
-        tty.setraw(fd)
-        key = sys.stdin.read(1)
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    throttle, steering, quit_pressed = controller.read_controller(ctrl, l2_idle, r2_idle)
 
-    return key
+    if quit_pressed:
+        with i2c_lock:
+            stop()
+        return False
+
+    if command == "B":
+        print("Hindrun")
+        with i2c_lock:
+            go_backwards_slow()
+        time.sleep(0.3)
+    
+    else: 
+        m1 = throttle*motor_speed + steering*motor_speed*0.6
+        m2 = -throttle*motor_speed + steering*motor_speed*0.6   
+        with i2c_lock:
+            send_to_motor(m1, m2)
 
 
-print("WASD motor control")
-print("------------------")
-print("W = forward")
-print("S = backward")
-print("A = turn left")
-print("D = turn right")
-print("X or Space = stop")
-print("+ = increase speed")
-print("- = decrease speed")
-print("Q = quit")
-print()
-print("Lift the robot wheels before testing.")
-print(f"Current speed: {SPEED}")
-
+# aðallykkja sem kallar á fallið
 try:
     while True:
-        key = get_key().lower()
-
-        if key == "w":
-            send_motors(SPEED, -SPEED)
-            print("Forward")
-
-        elif key == "s":
-            send_motors(-SPEED, SPEED)
-            print("Backward")
-
-        elif key == "a":
-            send_motors(-TURN_SPEED, -TURN_SPEED)
-            print("Left")
-
-        elif key == "d":
-            send_motors(TURN_SPEED, TURN_SPEED)
-            print("Right")
-
-        elif key == "x" or key == " ":
-            stop()
-            print("Stop")
-
-        elif key == "+" or key == "=":
-            SPEED = min(255, SPEED + 10)
-            TURN_SPEED = min(255, TURN_SPEED + 10)
-            print(f"Speed: {SPEED}")
-
-        elif key == "-" or key == "_":
-            SPEED = max(0, SPEED - 10)
-            TURN_SPEED = max(0, TURN_SPEED - 10)
-            print(f"Speed: {SPEED}")
-
-        elif key == "q":
-            stop()
-            print("Quit")
+        if not manual_step():
             break
+        time.sleep(0.05)
 
-        else:
-            print("Unknown key:", key)
-
-except KeyboardInterrupt:
-    print("\nStopping motors.")
-    stop()
+finally:
+    controller.close_controller()
