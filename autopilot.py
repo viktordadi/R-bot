@@ -5,14 +5,6 @@ import smbus
 import time
 import random
 
-i2c_lock = threading.Lock()
-
-def servo_loop():
-    while True:
-        with i2c_lock:
-            servo.scan()
-        time.sleep(0.05)
-threading.Thread(target=servo_loop, daemon=True).start()
 
 
 bus = smbus.SMBus(1) 
@@ -74,29 +66,34 @@ def go_left_smooth():
 def stop():
     send_to_motor(0,0)
 
+def scan_position(position):
+    servo.move_and_wait(position)
+    return srf02.scan_front()
 
 def autopilot_step():
-    with i2c_lock:
-        command, dist_L, dist_R = srf02.get_front_status()
+    command, dist_L, dist_R = scan_position("center")
 
     if command == "C":
         print("Clear")
-        if min(dist_L, dist_R) < 60:
-            go_forward_slow()
-        else:
-            go_forward()
+        go_forward()
 
     elif command == "B":
         print("Both")
-        go_backwards_slow()
-        time.sleep(0.3)
+        stop()
+        time.sleep(0.1)
 
-        if dist_L > dist_R:
+        left_command, left_L, left_R = scan_position("left")
+        right_command, right_L, right_R = scan_position("right")
+
+        left_space = min(left_L, left_R)
+        right_space = min(right_L, right_R)
+
+        if left_space > right_space:
             go_left()
         else:
             go_right()
 
-        time.sleep(0.8)
+        time.sleep(0.5)
         stop()
 
     elif command == "R":
@@ -109,10 +106,6 @@ def autopilot_step():
 
     else:
         print("Error")
-        stop()
-        time.sleep(0.2)
-        go_backwards_slow()
-        time.sleep(2)
         stop()
 
 
