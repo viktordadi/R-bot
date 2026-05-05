@@ -16,6 +16,7 @@ import manual_control
 import autopilot
 
 
+
 # PS5 button mappings in pygame
 CROSS_BUTTON = 0       # X = manual / handstýring
 CIRCLE_BUTTON = 1      # Circle = stoppa og hætta
@@ -38,6 +39,14 @@ def print_controls():
     print("Left stick   = beygja í manual")
     print("--------------------------")
 
+def button_pressed(button):
+    for event in pygame.event.get():
+        if event.type == pygame.JOYBUTTONDOWN and event.button == button:
+            return True
+    return False
+
+def close():
+    controller.close_controller()
 
 def main():
     mode = MODE_STOPPED
