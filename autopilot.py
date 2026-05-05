@@ -74,6 +74,22 @@ def go_left_smooth():
 def stop():
     send_to_motor(0,0)
 
+def turn_until_clear(direction):
+    while True:
+        with i2c_lock:
+            command, dist_L, dist_R = srf02.get_front_status()
+
+        if command == "C":
+            stop()
+            time.sleep(0.1)
+            break
+
+        if direction == "left":
+            go_left_smooth()
+        elif direction == "right":
+            go_right_smooth()
+
+        time.sleep(0.1)
 
 def autopilot_step():
     with i2c_lock:
@@ -92,20 +108,17 @@ def autopilot_step():
         time.sleep(0.3)
 
         if dist_L > dist_R:
-            go_left()
+            turn_until_clear("left")
         else:
-            go_right()
-
-        time.sleep(0.4)
-        stop()
+            turn_until_clear("right")
 
     elif command == "R":
         print("Right")
-        go_left_smooth()
+        turn_until_clear("left")
 
     elif command == "L":
         print("Left")
-        go_right_smooth()
+        turn_until_clear("right")
 
     else:
         print("Error")
@@ -114,7 +127,6 @@ def autopilot_step():
         go_backwards_slow()
         time.sleep(2)
         stop()
-
 
 if __name__ == "__main__":
     try:
@@ -127,3 +139,4 @@ if __name__ == "__main__":
 
     finally:
         stop()
+
