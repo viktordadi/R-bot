@@ -49,6 +49,13 @@ def button_pressed(button):
 def close():
     manual_control.close()
 
+def get_pressed_buttons():
+    buttons = set()
+    for event in pygame.event.get():
+        if event.type == pygame.JOYBUTTONDOWN:
+            buttons.add(event.button)
+    return buttons
+
 def main():
     mode = MODE_STOPPED
     print_controls()
