@@ -7,8 +7,8 @@ def scan(sonic=True):
   kit.servo[0].angle = 90
   kit.servo[1].angle = 90
   time.sleep(0.3)
-  kit.servo[0].angle = 145
-  kit.servo[1].angle = 65
+  kit.servo[0].angle = 110
+  kit.servo[1].angle = 70
   time.sleep(0.3)
   kit.servo[0].angle = 80
   kit.servo[1].angle = 100
