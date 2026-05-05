@@ -79,4 +79,4 @@ def get_front_status(limit=40):
         return "C", l_dis, r_dis
 
 def scan_front():
-    return get_front_status(limit=40)
+    return get_front_status(limit)
