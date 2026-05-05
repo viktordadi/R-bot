@@ -20,7 +20,7 @@ import autopilot
 # PS5 button mappings in pygame
 CROSS_BUTTON = 0       # X = manual / handstýring
 CIRCLE_BUTTON = 1      # Circle = stoppa og hætta
-TRIANGLE_BUTTON = 3    # Triangle = autopilot
+TRIANGLE_BUTTON = 2    # Triangle = autopilot
 
 # Settings
 LOOP_DELAY = 0.05
