@@ -13,7 +13,6 @@ Handstýring:
 import time
 import pygame
 import manual_control
-import controller
 import autopilot
 
 
@@ -24,42 +23,10 @@ TRIANGLE_BUTTON = 2    # Triangle = autopilot
 
 # Settings
 LOOP_DELAY = 0.05
-MAX_SPEED = autopilot.motor_speed
-MAX_TURN = autopilot.motor_speed
 
 MODE_STOPPED = "stopped"
 MODE_MANUAL = "manual"
 MODE_AUTOPILOT = "autopilot"
-
-
-def clamp(value, min_value, max_value):
-    return max(min_value, min(max_value, value))
-
-
-def send_motors(m1, m2):
-    """Wrapper svo skipanirnar passi við kommentin í verkefninu."""
-    autopilot.send_to_motor(m1, m2)
-
-
-def manual_drive(throttle, steering):
-    """
-    Breytir throttle + steering í tvo mótora.
-
-    forward  = send_motors(+speed, -speed)
-    backward = send_motors(-speed, +speed)
-    right    = send_motors(+turn, +turn)
-    left     = send_motors(-turn, -turn)
-    """
-    speed = throttle * MAX_SPEED
-    turn = steering * MAX_TURN
-
-    m1 = speed + turn
-    m2 = -speed + turn
-
-    m1 = clamp(m1, -MAX_SPEED, MAX_SPEED)
-    m2 = clamp(m2, -MAX_SPEED, MAX_SPEED)
-
-    send_motors(m1, m2)
 
 
 def print_controls():
@@ -73,46 +40,51 @@ def print_controls():
 
 
 def main():
-    ps5, l2_idle, r2_idle = controller.setup_controller()
-
     mode = MODE_STOPPED
     print_controls()
     autopilot.stop()
+    manual_control.stop()
 
     try:
         while True:
-            throttle, steering, quit_pressed = controller.read_controller(
-                ps5, l2_idle, r2_idle
-            )
-
-            manual_pressed = ps5.get_button(CROSS_BUTTON)
-            autopilot_pressed = ps5.get_button(TRIANGLE_BUTTON)
-            stop_pressed = ps5.get_button(CIRCLE_BUTTON) or quit_pressed
+            # Lesum bara mode-takkana hér.
+            # Sjálf handstýringin er inni í manual_control.manual_step().
+            manual_pressed = manual_control.button_pressed(CROSS_BUTTON)
+            autopilot_pressed = manual_control.button_pressed(TRIANGLE_BUTTON)
+            stop_pressed = manual_control.button_pressed(CIRCLE_BUTTON)
 
             if stop_pressed:
                 print("Stop button pressed. Stopping robot.")
                 mode = MODE_STOPPED
                 autopilot.stop()
+                manual_control.stop()
                 break
 
             if manual_pressed and mode != MODE_MANUAL:
                 mode = MODE_MANUAL
                 autopilot.stop()
+                manual_control.stop()
                 print("Mode: manual / handstýring")
 
             elif autopilot_pressed and mode != MODE_AUTOPILOT:
                 mode = MODE_AUTOPILOT
                 autopilot.stop()
+                manual_control.stop()
                 print("Mode: autopilot")
 
             if mode == MODE_MANUAL:
-                manual_drive(throttle, steering)
+                keep_running = manual_control.manual_step()
+                if keep_running is False:
+                    print("Manual control requested stop.")
+                    mode = MODE_STOPPED
+                    break
 
             elif mode == MODE_AUTOPILOT:
                 autopilot.autopilot_step()
 
             else:
                 autopilot.stop()
+                manual_control.stop()
 
             time.sleep(LOOP_DELAY)
 
@@ -121,7 +93,8 @@ def main():
 
     finally:
         autopilot.stop()
-        controller.close_controller()
+        manual_control.stop()
+        manual_control.close()
         pygame.quit()
         print("Robot stopped.")
 
