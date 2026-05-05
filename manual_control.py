@@ -12,18 +12,6 @@ ctrl, l2_idle, r2_idle = controller.setup_controller()
 
 
 
-
-
-def servo_loop():
-    while True:
-        with i2c_lock:
-            servo.scan()
-        time.sleep(2)
-threading.Thread(target=servo_loop, daemon=True).start()
-
-
- 
-
 # addressa fyrir motor (hex yfir í decimal)
 Motor_address = 0x50 
 
