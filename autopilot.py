@@ -86,7 +86,7 @@ def autopilot_step():
         print("Clear")
 
         if last_command != "C":
-            audio.rain_over_me()
+           # audio.rain_over_me()
 
         if min(dist_L, dist_R) < 60:
             go_forward_slow()
@@ -97,7 +97,7 @@ def autopilot_step():
         print("Both")
 
         if last_command != "B":
-            audio.mr_worldwide()
+            # audio.mr_worldwide()
 
         go_backwards_slow()
         time.sleep(0.3)
