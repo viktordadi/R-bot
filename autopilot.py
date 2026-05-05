@@ -96,7 +96,7 @@ def autopilot_step():
         else:
             go_right()
 
-        time.sleep(0.4)
+        time.sleep(0.8)
         stop()
 
     elif command == "R":
