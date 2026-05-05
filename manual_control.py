@@ -18,7 +18,7 @@ def servo_loop():
     while True:
         with i2c_lock:
             servo.scan()
-        time.sleep(0.05)
+        time.sleep(2)
 threading.Thread(target=servo_loop, daemon=True).start()
 
 
