@@ -6,23 +6,17 @@ i2c_bus = SMBus(1)
 sonic_r = 0x71
 sonic_l = 0x70
 
-
-
 def filter_distance(distance):
-    '''Filterar augljóslega vitlaus gildi frá SRF02'''
-
     if distance == 0:
         return 9999
 
     if distance < 10:
         return None
 
-
     if distance > 600:
         return 9999
 
     return distance
-
 
 def scan_one(address):
     try:
@@ -30,7 +24,7 @@ def scan_one(address):
         time.sleep(0.075)
 
         high = i2c_bus.read_byte_data(address, 2)
-        low  = i2c_bus.read_byte_data(address, 3)
+        low = i2c_bus.read_byte_data(address, 3)
 
         distance = high * 256 + low
         return filter_distance(distance)
@@ -40,43 +34,24 @@ def scan_one(address):
         return None
 
 def scan_both():
-    '''Skannar báða skynjara EKKI á sama tíma (forðast truflun)'''
-
-    # Hægri fyrst
     r_dis = scan_one(sonic_r)
-
-    # Smá delay til að forðast cross-talk
     time.sleep(0.05)
 
-    # Svo vinstri
     l_dis = scan_one(sonic_l)
 
     return r_dis, l_dis
 
-
 def get_front_status(limit=40):
-    '''
-    B = báðir blokkeraðir
-    R = hægri blokkeraður
-    L = vinstri blokkeraður
-    C = clear
-    E = error
-    '''
-
     r_dis, l_dis = scan_both()
-
 
     if r_dis is None or l_dis is None:
         return "E", 9999, 9999
 
     if r_dis <= limit and l_dis <= limit:
-        return 'B', l_dis, r_dis
+        return "B", l_dis, r_dis
     elif r_dis <= limit:
         return "R", l_dis, r_dis
     elif l_dis <= limit:
         return "L", l_dis, r_dis
     else:
         return "C", l_dis, r_dis
-
-def scan_front():
-    return get_front_status(limit=40)
