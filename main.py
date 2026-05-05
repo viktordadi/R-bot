@@ -63,8 +63,7 @@ def manual_drive(throttle, steering):
 
 
 def print_controls():
-    print("
---- Robot main control ---")
+    print("--- Robot main control ---")
     print("X / Cross    = manual / handstýring")
     print("Triangle     = autopilot")
     print("Circle       = stoppa og hætta")
