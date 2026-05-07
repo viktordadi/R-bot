@@ -64,10 +64,12 @@ def autopilot_step():
     if command == "C":
         print("Clear")
         if min(dist_L, dist_R) < 60:
-            audio.faaah()
+            if not pygame.mixer.music.get_busy():
+                audio.faaah()
             go_forward_slow()
         else:
             go_forward()
+            audio.stop_faaah()
     elif command == "B":
         print("Both")
         go_backwards_slow()
