@@ -1,30 +1,42 @@
-import smbus
-import time
+def detect_right_arm_fully_left(keypoints, image_width, min_confidence=0.4):
+    required = ["right_shoulder", "right_elbow", "right_wrist"]
 
-I2C_ADDRESS = 0x50
-bus = smbus.SMBus(1)
+    for name in required:
+        if name not in keypoints or keypoints[name] is None:
+            return None
 
-def send_motors(left, right):
-    left = max(-255, min(255, int(left)))
-    right = max(-255, min(255, int(right)))
+    sx, sy, sc = keypoints["right_shoulder"]
+    ex, ey, ec = keypoints["right_elbow"]
+    wx, wy, wc = keypoints["right_wrist"]
 
-    left_speed = abs(left)
-    left_sign = 0 if left >= 0 else 1
+    if sc < min_confidence or ec < min_confidence or wc < min_confidence:
+        return None
 
-    right_speed = abs(right)
-    right_sign = 0 if right >= 0 else 1
+    min_left_distance = image_width * 0.20
 
-    data = [left_speed, left_sign, right_speed, right_sign]
-    print(data)
-    bus.write_i2c_block_data(I2C_ADDRESS, 0x00, data)
+    wrist_is_left_of_shoulder = wx < sx - min_left_distance
+    elbow_is_left_of_shoulder = ex < sx
+    arm_is_roughly_horizontal = abs(wy - sy) < image_width * 0.20
+    wrist_and_elbow_aligned = abs(wy - ey) < image_width * 0.15
 
-print("Forward")
-send_motors(100, -100)
-time.sleep(2)
+    if (
+        wrist_is_left_of_shoulder
+        and elbow_is_left_of_shoulder
+        and arm_is_roughly_horizontal
+        and wrist_and_elbow_aligned
+    ):
+        return "stop"
 
-print("Backward")
-send_motors(-100, 100)
-time.sleep(2)
+    return None
 
-print("Stop")
-send_motors(0, 0)
+
+# Fake example keypoints, just to test the function
+keypoints = {
+    "right_shoulder": (420, 240, 0.9),
+    "right_elbow": (320, 245, 0.8),
+    "right_wrist": (230, 250, 0.8),
+}
+
+command = detect_right_arm_fully_left(keypoints, image_width=640)
+
+print(command)
