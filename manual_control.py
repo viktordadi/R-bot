@@ -105,5 +105,5 @@ if __name__ == "__main__":
         while True:
             if not manual_step():
                 break
-finally:
-    controller.close_controller()
+    finally:                      
+        controller.close_controller()
