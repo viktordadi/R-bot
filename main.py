@@ -17,9 +17,6 @@ import manual_control
 import autopilot
 
 
-# Setja þessar í staðinn:
-import camera_stream
-camera_running = False
 
 
 # PS5 button mappings in pygame
@@ -77,15 +74,7 @@ def main():
             camera_pressed = SQUARE_BUTTON in pressed
             rain_pressed = dpad == (0, 1)
             fireball_pressed = dpad == (0, -1)
-            if camera_pressed:
-                if not camera_running:
-                    camera_stream.start()
-                    camera_running = True
-                    print("Myndvél kveikt")
-                else:
-                    camera_stream.stop()
-                    camera_running = False
-                    print("Myndvél slökkt")
+            
 
             if stop_pressed:
                 print("Stop button pressed. Stopping robot.")
@@ -132,8 +121,7 @@ def main():
         print("KeyboardInterrupt. Stopping robot.")
 
     finally:
-        if camera_running:
-            camera_stream.stop()
+       
         autopilot.stop()
         manual_control.stop()
         manual_control.close()
