@@ -17,9 +17,9 @@ import autopilot
 from picamera2 import picamera2
 
 #býr til tengi við myndavélina og býr til stillingar fyrir preview til að sjá í rauntíma
-camera = = picamera2()
+camera = Picamera2()
 camera.configure(camera.create_preview_configuration())
-camera.running = False
+camera_running = False
 
 
 # PS5 button mappings in pygame
@@ -76,10 +76,10 @@ def main():
                     camera.start()
                     camera_running = True
                     print("Myndvél kveikt")
-            else:
-                camera.stop()
-                camera_running = False
-                print("Myndvél slökkt")
+                else:
+                    camera.stop()
+                    camera_running = False
+                    print("Myndvél slökkt")
 
             if stop_pressed:
                 print("Stop button pressed. Stopping robot.")
