@@ -15,7 +15,7 @@ import audio
 import pygame
 import manual_control
 import autopilot
-from picamera2 import Picamera2
+
 
 # Setja þessar í staðinn:
 import camera_stream
