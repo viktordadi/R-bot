@@ -38,7 +38,7 @@ WINDOW_SIZE_H_W = (480, 640)
 MODEL_PATH = "/usr/share/imx500-models/imx500_network_higherhrnet_coco.rpk"
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
-FPS = 10
+FPS = 60
 DETECTION_THRESHOLD = 0.3
 
 
@@ -173,7 +173,7 @@ def start_gesture_camera(show_preview=False):
     config = picam2.create_preview_configuration(
         main={"size": (IMAGE_WIDTH, IMAGE_HEIGHT)},
         controls={"FrameRate": intrinsics.inference_rate},
-        buffer_count=12,
+        buffer_count=4,
     )
 
     imx500.show_network_fw_progress_bar()
