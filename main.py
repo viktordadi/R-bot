@@ -40,11 +40,6 @@ def print_controls():
     print("Left stick   = beygja í manual")
     print("--------------------------")
 
-def button_pressed(button):
-    for event in pygame.event.get():
-        if event.type == pygame.JOYBUTTONDOWN and event.button == button:
-            return True
-    return False
 
 def close():
     manual_control.close()
