@@ -17,9 +17,8 @@ import manual_control
 import autopilot
 from picamera2 import Picamera2
 
-#býr til tengi við myndavélina og býr til stillingar fyrir preview til að sjá í rauntíma
-camera = Picamera2()
-camera.configure(camera.create_preview_configuration())
+# Setja þessar í staðinn:
+import camera_stream
 camera_running = False
 
 
@@ -80,11 +79,11 @@ def main():
             fireball_pressed = dpad == (0, -1)
             if camera_pressed:
                 if not camera_running:
-                    camera.start()
+                    camera_stream.start()
                     camera_running = True
                     print("Myndvél kveikt")
                 else:
-                    camera.stop()
+                    camera_stream.stop()
                     camera_running = False
                     print("Myndvél slökkt")
 
@@ -134,7 +133,7 @@ def main():
 
     finally:
         if camera_running:
-            camera.stop()
+            camera_stream.stop()
         autopilot.stop()
         manual_control.stop()
         manual_control.close()
