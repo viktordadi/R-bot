@@ -14,13 +14,19 @@ import time
 import pygame
 import manual_control
 import autopilot
+from picamera2 import picamera2
 
+#býr til tengi við myndavélina og býr til stillingar fyrir preview til að sjá í rauntíma
+camera = = picamera2()
+camera.configure(camera.create_preview_configuration())
+camera.running = False
 
 
 # PS5 button mappings in pygame
 CROSS_BUTTON = 0       # X = manual / handstýring
 CIRCLE_BUTTON = 1      # Circle = stoppa og hætta
 TRIANGLE_BUTTON = 2    # Triangle = autopilot
+SQUARE_BUTTON = 3      # SQUARE = opna myndvél
 
 # Settings
 LOOP_DELAY = 0.05
@@ -64,6 +70,16 @@ def main():
             manual_pressed = CROSS_BUTTON in pressed      # athugar set
             autopilot_pressed = TRIANGLE_BUTTON in pressed
             stop_pressed = CIRCLE_BUTTON in pressed
+            camera_pressed = SQUARE_BUTTON in pressed
+            if camera_pressed:
+                if not camera_running:
+                    camera.start()
+                    camera_running = True
+                    print("Myndvél kveikt")
+            else:
+                camera.stop()
+                camera_running = False
+                print("Myndvél slökkt")
 
             if stop_pressed:
                 print("Stop button pressed. Stopping robot.")
@@ -104,6 +120,8 @@ def main():
         print("KeyboardInterrupt. Stopping robot.")
 
     finally:
+        if camera_running:
+            camera.stop()
         autopilot.stop()
         manual_control.stop()
         manual_control.close()
