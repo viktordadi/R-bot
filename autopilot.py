@@ -4,6 +4,7 @@ import srf02
 import smbus
 import time
 import audio
+import test
 
 i2c_lock = threading.Lock()
 
@@ -58,6 +59,12 @@ def stop():
     send_to_motor(0, 0)
 
 def autopilot_step():
+    gesture_command = get_gesture_command()
+
+    if gesture_command == "stop":
+        stop()
+        return
+        
     with i2c_lock:
         command, dist_L, dist_R = srf02.get_front_status()
 
