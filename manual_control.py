@@ -69,6 +69,9 @@ def go_left_smooth():
 def stop():
     send_to_motor(0,0)
 
+def close():
+    controller.close_controller()
+
 
 def manual_step():
     # les skynjar og stjórnar 
@@ -96,12 +99,11 @@ def manual_step():
             send_to_motor(m1, m2)
     return True
 
-# aðallykkja sem kallar á fallið
-try:
-    while True:
-        if not manual_step():
-            break
-        time.sleep(0.05)
-
+# aðallykkja sem kallar á fallið ef það er kallað á hana
+if __name__ == "main":
+    try:
+        while True:
+            if not manual_step():
+                break
 finally:
     controller.close_controller()
