@@ -64,10 +64,10 @@ def autopilot_step():
     if command == "C":
         print("Clear")
         if min(dist_L, dist_R) < 60:
+            audio.faaah()
             go_forward_slow()
         else:
             go_forward()
-
     elif command == "B":
         print("Both")
         go_backwards_slow()
@@ -75,8 +75,10 @@ def autopilot_step():
 
         if dist_L > dist_R:
             go_left()
+            audio.left()
         else:
             go_right()
+            audio.right()
 
         time.sleep(0.8)
         stop()
