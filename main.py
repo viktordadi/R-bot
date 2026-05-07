@@ -61,6 +61,7 @@ def get_pressed_buttons():
     return buttons, dpad
 
 def main():
+    global camera_running
     mode = MODE_STOPPED
     print_controls()
     autopilot.stop()
