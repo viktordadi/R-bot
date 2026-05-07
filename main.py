@@ -66,11 +66,13 @@ def main():
         while True:
             # Lesum bara mode-takkana hér.
             # Sjálf handstýringin er inni í manual_control.manual_step().
-            pressed = get_pressed_buttons()
+            pressed, dpad = get_pressed_buttons()
             manual_pressed = CROSS_BUTTON in pressed      # athugar set
             autopilot_pressed = TRIANGLE_BUTTON in pressed
             stop_pressed = CIRCLE_BUTTON in pressed
             camera_pressed = SQUARE_BUTTON in pressed
+            rain_pressed = dpad == (0, 1)
+            fireball_pressed = dpad == (0.-1)
             if camera_pressed:
                 if not camera_running:
                     camera.start()
@@ -87,6 +89,12 @@ def main():
                 autopilot.stop()
                 manual_control.stop()
                 break
+
+            if rain_pressed:
+              audio.rain_over_me()
+
+            if fireball_pressed:
+              audio.fireball()
 
             if manual_pressed and mode != MODE_MANUAL:
                 mode = MODE_MANUAL
