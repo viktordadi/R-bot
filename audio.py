@@ -22,3 +22,10 @@ def left():
   pygame.mixer.music.load("left.mp3")
   pygame.mixer.music.play()
 
+def faah():
+  pygame.mixer.music.load("fahh.mp3")
+  pygame.mixer.music.play()
+
+def sus():
+  pygame.mixer.music.load("sus.mp3")
+  pygame.mixer.music.play()
