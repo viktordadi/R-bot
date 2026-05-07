@@ -28,7 +28,7 @@ threading.Thread(target=servo_loop, daemon=True).start()
 
 # Start AI gesture camera once
 try:
-    start_gesture_camera(show_preview=False)
+    start_gesture_camera(show_preview=True)
     print("Gesture camera started")
 except Exception as e:
     print("Could not start gesture camera:", e)
