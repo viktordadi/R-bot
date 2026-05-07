@@ -23,8 +23,11 @@ def left():
   pygame.mixer.music.play()
 
 def faaah():
-  pygame.mixer.music.load("faaah.mp3")
-  pygame.mixer.music.play()
+    pygame.mixer.music.load("faaah.mp3")
+    pygame.mixer.music.play()
+
+def stop_faaah():
+    pygame.mixer.music.stop()
 
 def sus():
   pygame.mixer.music.load("sus.mp3")
