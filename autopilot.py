@@ -3,6 +3,7 @@ import servo
 import srf02
 import smbus
 import time
+import audio
 
 i2c_lock = threading.Lock()
 
