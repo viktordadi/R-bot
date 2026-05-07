@@ -100,7 +100,7 @@ def manual_step():
     return True
 
 # aðallykkja sem kallar á fallið ef það er kallað á hana
-if __name__ == "main":
+if __name__ == "__main__":
     try:
         while True:
             if not manual_step():
