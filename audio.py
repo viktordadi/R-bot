@@ -2,6 +2,9 @@ import pygame
 
 pygame.mixer.init()
 
+def is_playing():
+    return pygame.mixer.music.get_busy()
+
 def fireball():
   pygame.mixer.music.load("fireball.mp3")
   pygame.mixer.music.play()
