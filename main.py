@@ -48,6 +48,7 @@ def get_pressed_buttons():
     buttons = set()
     for event in pygame.event.get():
         if event.type == pygame.JOYBUTTONDOWN:
+            print(f"Takki ýttur: {event.button}")  # ← bæta við
             buttons.add(event.button)
     return buttons
 
