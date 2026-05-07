@@ -23,7 +23,7 @@ import time
 import threading
 import numpy as np
 
-from picamera2 import Picamera2
+from picamera2 import Picamera2, Preview
 from picamera2.devices.imx500 import IMX500, NetworkIntrinsics
 from picamera2.devices.imx500.postprocess_highernet import postprocess_higherhrnet
 
@@ -179,7 +179,11 @@ def start_gesture_camera(show_preview=False):
     imx500.show_network_fw_progress_bar()
 
     picam2.pre_callback = camera_callback
-    picam2.start(config, show_preview=show_preview)
+    if show_preview:
+        picam2.start_preview(Preview.QTGL)
+        picam2.start(config)
+    else:
+        picam2.start(config, show_preview=False)
 
     imx500.set_auto_aspect_ratio()
 
