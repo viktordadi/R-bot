@@ -581,27 +581,16 @@ if __name__ == "__main__":
     # Set our callback.
     #
     # This means camera_callback() will run every frame.
-    picam2.pre_callback = camera_callback
-
-    # Start camera with no local preview.
-    #
-    # We do not need show_preview=True because we are sending preview
-    # to VLC/browser through the web server.
-    picam2.start(config, show_preview=False)
-
-    # Automatically match the AI model input to the camera image.
-    imx500.set_auto_aspect_ratio()
-
-    # Start web server in a background thread.
-    #
-    # The camera keeps running in the main program.
-    # The web server sends the preview to VLC/browser.
     server_thread = threading.Thread(
         target=start_server,
         args=(args.port,),
         daemon=True,
     )
     server_thread.start()
+
+    picam2.pre_callback = camera_callback
+    picam2.start(config, show_preview=False)
+    imx500.set_auto_aspect_ratio()
 
     print("Gesture detection running.")
     print("Move RIGHT arm across body to the LEFT for STOP.")
