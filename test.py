@@ -173,7 +173,7 @@ def start_gesture_camera(show_preview=False):
     config = picam2.create_preview_configuration(
         main={"size": (IMAGE_WIDTH, IMAGE_HEIGHT)},
         controls={"FrameRate": intrinsics.inference_rate},
-        buffer_count=4,
+        buffer_count=2,
     )
 
     imx500.show_network_fw_progress_bar()
