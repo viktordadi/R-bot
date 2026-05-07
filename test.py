@@ -59,7 +59,7 @@ imx500 = None
 picam2 = None
 
 
-def right_arm_fully_left(person_keypoints, image_width=640, min_confidence=0.1):
+def right_arm_fully_left(person_keypoints, image_width=640, min_confidence=0.2):
     """
     Returns True if the right arm is stretched left across the body.
     Otherwise returns False.
