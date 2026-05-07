@@ -66,9 +66,10 @@ def main():
         while True:
             # Lesum bara mode-takkana hér.
             # Sjálf handstýringin er inni í manual_control.manual_step().
-            manual_pressed = button_pressed(CROSS_BUTTON)
-            autopilot_pressed = button_pressed(TRIANGLE_BUTTON)
-            stop_pressed = button_pressed(CIRCLE_BUTTON)
+            pressed = get_pressed_buttons()
+            manual_pressed = CROSS_BUTTON in pressed      # athugar set
+            autopilot_pressed = TRIANGLE_BUTTON in pressed
+            stop_pressed = CIRCLE_BUTTON in pressed
 
             if stop_pressed:
                 print("Stop button pressed. Stopping robot.")
