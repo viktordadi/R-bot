@@ -14,7 +14,7 @@ import time
 import pygame
 import manual_control
 import autopilot
-from picamera2 import picamera2
+from picamera2 import Picamera2 
 
 #býr til tengi við myndavélina og býr til stillingar fyrir preview til að sjá í rauntíma
 camera = Picamera2()
