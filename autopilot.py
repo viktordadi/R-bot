@@ -4,9 +4,17 @@ import srf02
 import smbus
 import time
 import audio
-import test
+
+from test import start_gesture_camera, get_gesture_command, stop_gesture_camera
+
 
 i2c_lock = threading.Lock()
+
+bus = smbus.SMBus(1)
+
+MOTOR_ADDRESS = 0x50
+motor_speed = 120
+
 
 def servo_loop():
     while True:
@@ -14,12 +22,17 @@ def servo_loop():
             servo.scan()
         time.sleep(0.05)
 
+
 threading.Thread(target=servo_loop, daemon=True).start()
 
-bus = smbus.SMBus(1)
 
-MOTOR_ADDRESS = 0x50
-motor_speed = 120
+# Start AI gesture camera once
+try:
+    start_gesture_camera(show_preview=False)
+    print("Gesture camera started")
+except Exception as e:
+    print("Could not start gesture camera:", e)
+
 
 def send_to_motor(m1, m2):
     m1 = max(-240, min(240, int(m1)))
@@ -34,60 +47,82 @@ def send_to_motor(m1, m2):
     data = [m1_speed, m1_sign, m2_speed, m2_sign]
     bus.write_i2c_block_data(MOTOR_ADDRESS, 0x00, data)
 
+
 def go_forward():
     send_to_motor(motor_speed, -motor_speed)
+
 
 def go_forward_slow():
     send_to_motor(motor_speed * 0.6, -motor_speed * 0.6)
 
+
 def go_backwards_slow():
     send_to_motor(-motor_speed * 0.6, motor_speed * 0.6)
+
 
 def go_right():
     send_to_motor(motor_speed, motor_speed)
 
+
 def go_right_smooth():
     send_to_motor(motor_speed * 0.7, -motor_speed * 0.2)
+
 
 def go_left():
     send_to_motor(-motor_speed, -motor_speed)
 
+
 def go_left_smooth():
     send_to_motor(motor_speed * 0.2, -motor_speed * 0.7)
 
+
 def stop():
     send_to_motor(0, 0)
+
+
+def safe_audio(sound_function):
+    try:
+        sound_function()
+    except Exception as e:
+        print("Audio error:", e)
+
 
 def autopilot_step():
     gesture_command = get_gesture_command()
 
     if gesture_command == "stop":
+        print("Gesture STOP")
         stop()
+        safe_audio(audio.stop_faaah)
         return
-        
+
     with i2c_lock:
         command, dist_L, dist_R = srf02.get_front_status()
 
     if command == "C":
         print("Clear")
+
         if min(dist_L, dist_R) < 60:
             if not audio.is_playing():
-                audio.faaah()
+                safe_audio(audio.faaah)
             go_forward_slow()
         else:
             go_forward()
-            audio.stop_faaah()
+            safe_audio(audio.stop_faaah)
+
     elif command == "B":
         print("Both")
+        safe_audio(audio.stop_faaah)
+
         go_backwards_slow()
         time.sleep(0.3)
 
         if dist_L > dist_R:
             go_left()
-            audio.left()
+            safe_audio(audio.left)
         else:
             go_right()
-            audio.right()
+            safe_audio(audio.right)
 
         time.sleep(0.8)
         stop()
@@ -105,6 +140,15 @@ def autopilot_step():
         stop()
         time.sleep(0.2)
 
+
+def close():
+    stop()
+    try:
+        stop_gesture_camera()
+    except Exception as e:
+        print("Could not stop gesture camera:", e)
+
+
 if __name__ == "__main__":
     try:
         while True:
@@ -115,4 +159,4 @@ if __name__ == "__main__":
         print("Stopping robot")
 
     finally:
-        stop()
+        close()
