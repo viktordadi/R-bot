@@ -11,10 +11,11 @@ Handstýring:
 """
 
 import time
+import audio
 import pygame
 import manual_control
 import autopilot
-from picamera2 import Picamera2 
+from picamera2 import Picamera2
 
 #býr til tengi við myndavélina og býr til stillingar fyrir preview til að sjá í rauntíma
 camera = Picamera2()
@@ -51,10 +52,13 @@ def close():
 
 def get_pressed_buttons():
     buttons = set()
+    dpad = (0, 0)
     for event in pygame.event.get():
         if event.type == pygame.JOYBUTTONDOWN:
             buttons.add(event.button)
-    return buttons
+        if event.type == pygame.JOYHATMOTION:
+            dpad = event.value
+    return buttons, dpad
 
 def main():
     mode = MODE_STOPPED
@@ -72,7 +76,7 @@ def main():
             stop_pressed = CIRCLE_BUTTON in pressed
             camera_pressed = SQUARE_BUTTON in pressed
             rain_pressed = dpad == (0, 1)
-            fireball_pressed = dpad == (0.-1)
+            fireball_pressed = dpad == (0, -1)
             if camera_pressed:
                 if not camera_running:
                     camera.start()
