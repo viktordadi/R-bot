@@ -39,8 +39,6 @@ threading.Thread(target=servo_loop, daemon=True).start()
 #
 # show_preview=False:
 #   no preview, but detection still works.
-#
-# If you run from SSH and get display errors, use False.
 # ------------------------------------------------------------
 
 try:
