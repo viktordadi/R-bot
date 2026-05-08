@@ -40,13 +40,13 @@ threading.Thread(target=servo_loop, daemon=True).start()
 # show_preview=False:
 #   no preview, but detection still works.
 # ------------------------------------------------------------
-
+"""
 try:
     start_gesture_camera(show_preview=True)
     print("Gesture camera started")
 except Exception as e:
     print("Could not start gesture camera:", e)
-
+"""
 
 def send_to_motor(m1, m2):
     """
