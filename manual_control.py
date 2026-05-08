@@ -67,7 +67,8 @@ def go_left_smooth():
     send_to_motor(motor_speed*0.2, -motor_speed*0.7)
 
 def stop():
-    send_to_motor(0,0)
+    with i2c_lock:
+        send_to_motor(0, 0)
 
 def close():
     controller.close_controller()
