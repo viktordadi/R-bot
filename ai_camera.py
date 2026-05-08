@@ -396,12 +396,24 @@ def get_gesture_command():
 
 
 def stop_gesture_camera():
-    global camera_started
+    global camera_started, picam2, imx500
 
     if picam2 is not None:
-        picam2.stop()
+        try:
+            picam2.stop()
+        except Exception as e:
+            print("AI camera stop error:", e)
 
+        try:
+            picam2.close()
+        except Exception as e:
+            print("AI camera close error:", e)
+
+    picam2 = None
+    imx500 = None
     camera_started = False
+
+    time.sleep(1.0)
 
 
 if __name__ == "__main__":
