@@ -1,10 +1,4 @@
 """
-ai_camera.py
-
-Uses the Raspberry Pi AI Camera pose model.
-
-This file is meant to be imported by autopilot.py.
-
 autopilot.py can call:
 
     start_gesture_camera(show_preview=True or False)
