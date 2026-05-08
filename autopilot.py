@@ -1,11 +1,16 @@
 import threading
+import time
+
 import servo
 import srf02
 import smbus
-import time
 import audio
 
-from ai_camera import start_gesture_camera, get_gesture_command, stop_gesture_camera
+from ai_camera import (
+    start_gesture_camera,
+    get_gesture_command,
+    stop_gesture_camera,
+)
 
 
 i2c_lock = threading.Lock()
@@ -26,15 +31,30 @@ def servo_loop():
 threading.Thread(target=servo_loop, daemon=True).start()
 
 
+# ------------------------------------------------------------
 # Start AI gesture camera once
+# ------------------------------------------------------------
+# show_preview=True:
+#   opens a preview on the Pi display.
+#
+# show_preview=False:
+#   no preview, but detection still works.
+#
+# If you run from SSH and get display errors, use False.
+# ------------------------------------------------------------
+
 try:
-    start_gesture_camera(show_preview=True)
+    start_gesture_camera(show_preview=False)
     print("Gesture camera started")
 except Exception as e:
     print("Could not start gesture camera:", e)
 
 
 def send_to_motor(m1, m2):
+    """
+    Sends speed and direction to the motor controller over I2C.
+    """
+
     m1 = max(-240, min(240, int(m1)))
     m2 = max(-240, min(240, int(m2)))
 
@@ -81,6 +101,10 @@ def stop():
 
 
 def safe_audio(sound_function):
+    """
+    Runs an audio function without crashing the robot if audio fails.
+    """
+
     try:
         sound_function()
     except Exception as e:
@@ -88,6 +112,27 @@ def safe_audio(sound_function):
 
 
 def autopilot_step():
+    """
+    One step of autopilot.
+
+    Priority order:
+
+        1. AI gesture command
+        2. SRF02 obstacle sensors
+        3. Normal driving logic
+
+    Gestures from ai_camera.py:
+
+        "stop"  -> stop
+        "left"  -> turn left
+        "right" -> turn right
+        None    -> use normal SRF02 autopilot
+    """
+
+    # --------------------------------------------------------
+    # 1. AI gesture control
+    # --------------------------------------------------------
+
     gesture_command = get_gesture_command()
 
     if gesture_command == "stop":
@@ -96,31 +141,65 @@ def autopilot_step():
         safe_audio(audio.stop_faaah)
         return
 
+    if gesture_command == "left":
+        print("Gesture LEFT")
+        safe_audio(audio.stop_faaah)
+        go_left_smooth()
+        return
+
+    if gesture_command == "right":
+        print("Gesture RIGHT")
+        safe_audio(audio.stop_faaah)
+        go_right_smooth()
+        return
+
+    # --------------------------------------------------------
+    # 2. SRF02 obstacle sensors
+    # --------------------------------------------------------
+
     with i2c_lock:
         command, dist_L, dist_R = srf02.get_front_status()
+
+    closest_distance = min(dist_L, dist_R)
+
+    # Emergency stop if something is very close.
+    if closest_distance < 25:
+        print("Emergency obstacle stop")
+        stop()
+        safe_audio(audio.stop_faaah)
+        time.sleep(0.2)
+        return
+
+    # --------------------------------------------------------
+    # 3. Normal autopilot movement
+    # --------------------------------------------------------
 
     if command == "C":
         print("Clear")
 
-        if min(dist_L, dist_R) < 60:
+        if closest_distance < 60:
             if not audio.is_playing():
                 safe_audio(audio.faaah)
+
             go_forward_slow()
+
         else:
             go_forward()
             safe_audio(audio.stop_faaah)
 
     elif command == "B":
-        print("Both")
+        print("Both blocked")
         safe_audio(audio.stop_faaah)
 
         go_backwards_slow()
         time.sleep(0.3)
 
         if dist_L > dist_R:
+            print("Turning left")
             go_left()
             safe_audio(audio.left)
         else:
+            print("Turning right")
             go_right()
             safe_audio(audio.right)
 
@@ -128,21 +207,26 @@ def autopilot_step():
         stop()
 
     elif command == "R":
-        print("Right")
+        print("Obstacle right, turning left")
         go_left_smooth()
 
     elif command == "L":
-        print("Left")
+        print("Obstacle left, turning right")
         go_right_smooth()
 
     else:
-        print("Error")
+        print("Sensor error")
         stop()
         time.sleep(0.2)
 
 
 def close():
+    """
+    Clean shutdown.
+    """
+
     stop()
+
     try:
         stop_gesture_camera()
     except Exception as e:
