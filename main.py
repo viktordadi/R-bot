@@ -51,6 +51,8 @@ def stop_all_camera_modes():
     except Exception as e:
         print("Stream camera stop error:", e)
 
+    time.sleep(1.0)
+
 
 def switch_camera_mode():
     """
