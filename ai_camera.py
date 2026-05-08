@@ -29,8 +29,9 @@ Gestures:
 import time
 import threading
 import numpy as np
+import cv2
 
-from picamera2 import Picamera2, Preview
+from picamera2 import Picamera2, Preview, MappedArray
 from picamera2.devices.imx500 import IMX500, NetworkIntrinsics
 from picamera2.devices.imx500.postprocess_highernet import postprocess_higherhrnet
 
@@ -38,53 +39,63 @@ from picamera2.devices.imx500.postprocess_highernet import postprocess_higherhrn
 # ------------------------------------------------------------
 # COCO pose keypoint numbers
 # ------------------------------------------------------------
-# The pose model detects 17 body points.
-#
-# These are the ones we need:
-#
-#   left shoulder  = 5
-#   right shoulder = 6
-#   left elbow     = 7
-#   right elbow    = 8
-#   left wrist     = 9
-#   right wrist    = 10
-# ------------------------------------------------------------
-
+NOSE = 0
+LEFT_EYE = 1
+RIGHT_EYE = 2
+LEFT_EAR = 3
+RIGHT_EAR = 4
 LEFT_SHOULDER = 5
 RIGHT_SHOULDER = 6
 LEFT_ELBOW = 7
 RIGHT_ELBOW = 8
 LEFT_WRIST = 9
 RIGHT_WRIST = 10
+LEFT_HIP = 11
+RIGHT_HIP = 12
+LEFT_KNEE = 13
+RIGHT_KNEE = 14
+LEFT_ANKLE = 15
+RIGHT_ANKLE = 16
+
+
+# Skeleton connections (COCO-style)
+SKELETON_LINES = [
+    (LEFT_SHOULDER, RIGHT_SHOULDER),
+    (LEFT_SHOULDER, LEFT_ELBOW),
+    (LEFT_ELBOW, LEFT_WRIST),
+    (RIGHT_SHOULDER, RIGHT_ELBOW),
+    (RIGHT_ELBOW, RIGHT_WRIST),
+    (LEFT_SHOULDER, LEFT_HIP),
+    (RIGHT_SHOULDER, RIGHT_HIP),
+    (LEFT_HIP, RIGHT_HIP),
+    (LEFT_HIP, LEFT_KNEE),
+    (LEFT_KNEE, LEFT_ANKLE),
+    (RIGHT_HIP, RIGHT_KNEE),
+    (RIGHT_KNEE, RIGHT_ANKLE),
+]
 
 
 # ------------------------------------------------------------
 # Camera / AI settings
 # ------------------------------------------------------------
-
 MODEL_PATH = "/usr/share/imx500-models/imx500_network_higherhrnet_coco.rpk"
 
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 
-# postprocess_higherhrnet wants height, width
+# postprocess_higherhrnet expects (height, width)
 WINDOW_SIZE_H_W = (IMAGE_HEIGHT, IMAGE_WIDTH)
 
-# 10 or 15 is usually safer than 60 for AI pose detection.
-# If you want lower delay, try FPS = 15.
+# 10-15 is usually a good balance
 FPS = 10
 
 DETECTION_THRESHOLD = 0.3
-
-# Confidence for shoulder/elbow/wrist points.
-# Lower = easier to trigger, but more false gestures.
 MIN_KEYPOINT_CONFIDENCE = 0.2
 
 
 # ------------------------------------------------------------
 # Shared state
 # ------------------------------------------------------------
-
 current_gesture_command = None
 gesture_lock = threading.Lock()
 
@@ -95,23 +106,11 @@ picam2 = None
 
 
 def point_ok(point, min_confidence=MIN_KEYPOINT_CONFIDENCE):
-    """
-    Returns True if the keypoint confidence is high enough.
-    """
-
     x, y, confidence = point
     return confidence >= min_confidence
 
 
 def left_arm_up(person_keypoints):
-    """
-    Returns True if the left arm is raised.
-
-    Image coordinates:
-        smaller y = higher in the image
-        bigger y  = lower in the image
-    """
-
     shoulder = person_keypoints[LEFT_SHOULDER]
     elbow = person_keypoints[LEFT_ELBOW]
     wrist = person_keypoints[LEFT_WRIST]
@@ -134,10 +133,6 @@ def left_arm_up(person_keypoints):
 
 
 def right_arm_up(person_keypoints):
-    """
-    Returns True if the right arm is raised.
-    """
-
     shoulder = person_keypoints[RIGHT_SHOULDER]
     elbow = person_keypoints[RIGHT_ELBOW]
     wrist = person_keypoints[RIGHT_WRIST]
@@ -160,10 +155,6 @@ def right_arm_up(person_keypoints):
 
 
 def left_arm_out_left(person_keypoints, image_width=IMAGE_WIDTH):
-    """
-    Returns True if the left arm is stretched out to the left.
-    """
-
     shoulder = person_keypoints[LEFT_SHOULDER]
     elbow = person_keypoints[LEFT_ELBOW]
     wrist = person_keypoints[LEFT_WRIST]
@@ -196,10 +187,6 @@ def left_arm_out_left(person_keypoints, image_width=IMAGE_WIDTH):
 
 
 def right_arm_out_right(person_keypoints, image_width=IMAGE_WIDTH):
-    """
-    Returns True if the right arm is stretched out to the right.
-    """
-
     shoulder = person_keypoints[RIGHT_SHOULDER]
     elbow = person_keypoints[RIGHT_ELBOW]
     wrist = person_keypoints[RIGHT_WRIST]
@@ -233,8 +220,6 @@ def right_arm_out_right(person_keypoints, image_width=IMAGE_WIDTH):
 
 def get_pose_command(person_keypoints):
     """
-    Converts pose keypoints into a robot command.
-
     Returns:
         "stop"
         "left"
@@ -242,7 +227,6 @@ def get_pose_command(person_keypoints):
         None
     """
 
-    # Stop has highest priority.
     if left_arm_up(person_keypoints) or right_arm_up(person_keypoints):
         return "stop"
 
@@ -256,10 +240,6 @@ def get_pose_command(person_keypoints):
 
 
 def parse_pose_output(metadata):
-    """
-    Converts raw AI Camera output into pose keypoints.
-    """
-
     outputs = imx500.get_outputs(metadata=metadata, add_batch=True)
 
     if outputs is None:
@@ -278,14 +258,68 @@ def parse_pose_output(metadata):
         return None
 
     keypoints = np.reshape(np.stack(keypoints, axis=0), (len(scores), 17, 3))
-
     return keypoints
+
+
+def draw_keypoint(frame, point, radius=5):
+    x, y, confidence = point
+    if confidence >= MIN_KEYPOINT_CONFIDENCE:
+        cv2.circle(frame, (int(x), int(y)), radius, (255, 255, 255), -1)
+
+
+def draw_line(frame, point_a, point_b, thickness=2):
+    ax, ay, ac = point_a
+    bx, by, bc = point_b
+
+    if ac >= MIN_KEYPOINT_CONFIDENCE and bc >= MIN_KEYPOINT_CONFIDENCE:
+        cv2.line(
+            frame,
+            (int(ax), int(ay)),
+            (int(bx), int(by)),
+            (255, 255, 255),
+            thickness,
+        )
+
+
+def draw_skeleton(frame, person_keypoints):
+    # Draw skeleton lines
+    for a, b in SKELETON_LINES:
+        draw_line(frame, person_keypoints[a], person_keypoints[b])
+
+    # Draw all visible keypoints
+    for point in person_keypoints:
+        draw_keypoint(frame, point)
+
+
+def draw_command_text(frame, command):
+    if command == "stop":
+        text = "STOP"
+        color = (255, 255, 255)
+    elif command == "left":
+        text = "LEFT"
+        color = (255, 255, 255)
+    elif command == "right":
+        text = "RIGHT"
+        color = (255, 255, 255)
+    else:
+        text = "NO GESTURE"
+        color = (255, 255, 255)
+
+    cv2.putText(
+        frame,
+        text,
+        (20, 40),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1,
+        color,
+        2,
+    )
 
 
 def camera_callback(request):
     """
     Runs automatically every camera frame.
-    Updates current_gesture_command.
+    Updates current_gesture_command and draws the skeleton on the preview.
     """
 
     global current_gesture_command
@@ -295,12 +329,19 @@ def camera_callback(request):
 
     command = None
 
-    if keypoints is not None:
-        for person in keypoints:
-            command = get_pose_command(person)
+    with MappedArray(request, "main") as m:
+        frame = m.array
 
-            if command is not None:
-                break
+        if keypoints is not None:
+            for person in keypoints:
+                draw_skeleton(frame, person)
+
+                person_command = get_pose_command(person)
+
+                if command is None and person_command is not None:
+                    command = person_command
+
+        draw_command_text(frame, command)
 
     with gesture_lock:
         current_gesture_command = command
@@ -309,8 +350,6 @@ def camera_callback(request):
 def start_gesture_camera(show_preview=False):
     """
     Starts the AI Camera gesture detector.
-
-    Call this once from autopilot.py.
     """
 
     global camera_started, imx500, picam2
@@ -323,7 +362,6 @@ def start_gesture_camera(show_preview=False):
     imx500 = IMX500(MODEL_PATH)
 
     intrinsics = imx500.network_intrinsics
-
     if not intrinsics:
         intrinsics = NetworkIntrinsics()
         intrinsics.task = "pose estimation"
@@ -337,7 +375,7 @@ def start_gesture_camera(show_preview=False):
     picam2 = Picamera2(imx500.camera_num)
 
     config = picam2.create_preview_configuration(
-        main={"size": (IMAGE_WIDTH, IMAGE_HEIGHT)},
+        main={"size": (IMAGE_WIDTH, IMAGE_HEIGHT), "format": "RGB888"},
         controls={"FrameRate": intrinsics.inference_rate},
         buffer_count=3,
     )
@@ -355,30 +393,15 @@ def start_gesture_camera(show_preview=False):
     imx500.set_auto_aspect_ratio()
 
     camera_started = True
-
     print("AI gesture camera started.")
 
 
 def get_gesture_command():
-    """
-    Returns the latest gesture command.
-
-    Returns:
-        "stop"
-        "left"
-        "right"
-        None
-    """
-
     with gesture_lock:
         return current_gesture_command
 
 
 def stop_gesture_camera():
-    """
-    Stops the AI Camera cleanly.
-    """
-
     global camera_started
 
     if picam2 is not None:
