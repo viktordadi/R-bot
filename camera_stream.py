@@ -72,7 +72,7 @@ class StreamHandler(BaseHTTPRequestHandler):
                 <html>
                 <body>
                     <h1>Robot Camera Stream</h1>
-                    <img src="/stream.mjpg" width="640" height="480">
+                    <img src="/stream.mjpg" width="1280" height="720">
                 </body>
                 </html>
                 """
