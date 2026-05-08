@@ -103,7 +103,6 @@ def get_pressed_buttons():
     return buttons, dpad
 
 def main():
-    global camera_running
     mode = MODE_STOPPED
     print_controls()
     autopilot.stop()
@@ -170,7 +169,7 @@ def main():
         print("KeyboardInterrupt. Stopping robot.")
 
     finally:
-       
+        stop_all_camera_modes()
         autopilot.stop()
         manual_control.stop()
         manual_control.close()
