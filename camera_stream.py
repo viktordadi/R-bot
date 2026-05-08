@@ -126,7 +126,7 @@ def start(open_browser=True):
         camera = Picamera2()
         camera.configure(
             camera.create_video_configuration(
-                main={"size": (1280, 720)}
+                main={"size": (1920, 1080)}
             )
         )
     except Exception as e:
