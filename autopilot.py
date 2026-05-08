@@ -21,27 +21,38 @@ MOTOR_ADDRESS = 0x50
 motor_speed = 120
 
 
+servo_thread = None
+servo_loop_running = False
+
+
 def servo_loop():
-    while True:
+    global servo_loop_running
+
+    while servo_loop_running:
         with i2c_lock:
             servo.scan()
         time.sleep(0.05)
 
+    print("Servo loop exited")
 
-# threading.Thread(target=servo_loop, daemon=True).start()
-
-servo_thread_started = False
 
 def start_servo_loop():
-    global servo_thread_started
+    global servo_thread, servo_loop_running
 
-    if servo_thread_started:
+    if servo_loop_running:
         return
 
-    threading.Thread(target=servo_loop, daemon=True).start()
-    servo_thread_started = True
+    servo_loop_running = True
+    servo_thread = threading.Thread(target=servo_loop, daemon=True)
+    servo_thread.start()
     print("Servo loop started")
 
+
+def stop_servo_loop():
+    global servo_loop_running
+
+    servo_loop_running = False
+    print("Servo loop stopping")
 
 # ------------------------------------------------------------
 # Start AI gesture camera once
@@ -234,7 +245,7 @@ def close():
     """
     Clean shutdown.
     """
-
+    stop_servo_loop()
     stop()
 
     try:
