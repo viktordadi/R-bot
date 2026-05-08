@@ -15,6 +15,8 @@ import audio
 import pygame
 import manual_control
 import autopilot
+import ai_camera
+import camera_stream
 
 
 
@@ -23,7 +25,7 @@ import autopilot
 CROSS_BUTTON = 0       # X = manual / handstýring
 CIRCLE_BUTTON = 1      # Circle = stoppa og hætta
 TRIANGLE_BUTTON = 2    # Triangle = autopilot
-SQUARE_BUTTON = 3      # SQUARE = opna myndvél
+SQUARE_BUTTON = 3      # switch camera mode
 
 # Settings
 LOOP_DELAY = 0.05
@@ -31,6 +33,50 @@ LOOP_DELAY = 0.05
 MODE_STOPPED = "stopped"
 MODE_MANUAL = "manual"
 MODE_AUTOPILOT = "autopilot"
+
+CAMERA_OFF = "off"
+CAMERA_AI = "ai"
+CAMERA_STREAM = "stream"
+
+camera_mode = CAMERA_OFF
+
+def stop_all_camera_modes():
+    try:
+        ai_camera.stop_gesture_camera()
+    except Exception as e:
+        print("AI camera stop error:", e)
+
+    try:
+        camera_stream.stop()
+    except Exception as e:
+        print("Stream camera stop error:", e)
+
+
+def switch_camera_mode():
+    """
+    Cycles camera mode:
+
+        off -> AI camera -> normal browser stream -> off
+    """
+
+    global camera_mode
+
+    if camera_mode == CAMERA_OFF:
+        print("Switching camera mode: AI camera")
+        stop_all_camera_modes()
+        ai_camera.start_gesture_camera(show_preview=False)
+        camera_mode = CAMERA_AI
+
+    elif camera_mode == CAMERA_AI:
+        print("Switching camera mode: normal browser stream")
+        stop_all_camera_modes()
+        camera_stream.start(open_browser=True)
+        camera_mode = CAMERA_STREAM
+
+    else:
+        print("Switching camera mode: off")
+        stop_all_camera_modes()
+        camera_mode = CAMERA_OFF
 
 
 def print_controls():
@@ -74,6 +120,9 @@ def main():
             camera_pressed = SQUARE_BUTTON in pressed
             rain_pressed = dpad == (0, 1)
             fireball_pressed = dpad == (0, -1)
+
+            if camera_pressed:
+              switch_camera_mode()
             
 
             if stop_pressed:
