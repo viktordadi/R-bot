@@ -84,6 +84,7 @@ def print_controls():
     print("X / Cross    = manual / handstýring")
     print("Triangle     = autopilot")
     print("Circle       = stoppa og hætta")
+    print("Square       = Myndavél stilling")
     print("R2 / L2      = áfram / afturábak í manual")
     print("Left stick   = beygja í manual")
     print("--------------------------")
