@@ -78,22 +78,22 @@ def manual_step():
     # with I2c_lock tryggir að aðeins eitt fall talar við I2C
     ""
     with i2c_lock:
-        """
+        
         command, dist_L, dist_R = srf02.get_front_status(25)
-        """
+        
     throttle, steering, quit_pressed = controller.read_controller(ctrl, l2_idle, r2_idle)
         
     if quit_pressed:
         with i2c_lock:
             stop()
         return False
-    """
+    
     if command == "B":
         print("Hindrun")
         with i2c_lock:
             go_backwards_slow()
         time.sleep(0.3)
-    """
+    
     else: 
         m1 = throttle*motor_speed + steering*motor_speed*0.6
         m2 = -throttle*motor_speed + steering*motor_speed*0.6   
