@@ -145,10 +145,11 @@ def main():
                 print("Mode: manual / handstýring")
 
             elif autopilot_pressed and mode != MODE_AUTOPILOT:
-                mode = MODE_AUTOPILOT
-                autopilot.stop()
-                manual_control.stop()
-                print("Mode: autopilot")
+              mode = MODE_AUTOPILOT
+              autopilot.start_servo_loop()
+              autopilot.stop()
+              manual_control.stop()
+              print("Mode: autopilot")
 
             if mode == MODE_MANUAL:
                 keep_running = manual_control.manual_step()
