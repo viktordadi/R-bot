@@ -28,7 +28,19 @@ def servo_loop():
         time.sleep(0.05)
 
 
-threading.Thread(target=servo_loop, daemon=True).start()
+# threading.Thread(target=servo_loop, daemon=True).start()
+
+servo_thread_started = False
+
+def start_servo_loop():
+    global servo_thread_started
+
+    if servo_thread_started:
+        return
+
+    threading.Thread(target=servo_loop, daemon=True).start()
+    servo_thread_started = True
+    print("Servo loop started")
 
 
 # ------------------------------------------------------------
