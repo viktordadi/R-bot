@@ -1,6 +1,4 @@
 import threading
-import servo
-import srf02
 import smbus
 import controller
 import pygame
