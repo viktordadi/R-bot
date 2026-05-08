@@ -5,7 +5,7 @@ import smbus
 import time
 import audio
 
-from test import start_gesture_camera, get_gesture_command, stop_gesture_camera
+from ai_camera import start_gesture_camera, get_gesture_command, stop_gesture_camera
 
 
 i2c_lock = threading.Lock()
