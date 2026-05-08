@@ -129,6 +129,7 @@ def main():
 
             if stop_pressed:
                 print("Stop button pressed. Stopping robot.")
+                autopilot.stop_servo_loop()
                 mode = MODE_STOPPED
                 autopilot.stop()
                 manual_control.stop()
@@ -142,6 +143,7 @@ def main():
 
             if manual_pressed and mode != MODE_MANUAL:
                 mode = MODE_MANUAL
+                autopilot.stop_servo_loop()
                 autopilot.stop()
                 manual_control.stop()
                 print("Mode: manual / handstýring")
@@ -174,6 +176,7 @@ def main():
 
     finally:
         stop_all_camera_modes()
+        autopilot.stop_servo_loop()
         autopilot.stop()
         manual_control.stop()
         manual_control.close()
