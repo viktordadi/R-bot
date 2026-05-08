@@ -122,12 +122,18 @@ def start(open_browser=True):
 
     print("Starting normal camera stream...")
 
-    camera = Picamera2()
-    camera.configure(
-        camera.create_video_configuration(
-            main={"size": (640, 480)}
+    try:
+        camera = Picamera2()
+        camera.configure(
+            camera.create_video_configuration(
+                main={"size": (640, 480)}
+            )
         )
-    )
+    except Exception as e:
+        print("Could not start normal camera stream:", e)
+        camera = None
+        recording = False
+        return
 
     output = StreamOutput()
     camera.start_recording(MJPEGEncoder(), FileOutput(output))
