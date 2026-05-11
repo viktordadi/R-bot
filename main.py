@@ -130,12 +130,12 @@ def main():
         while True:
             # Lesum bara mode-takkana hér.
             # Sjálf handstýringin er inni í manual_control.manual_step().
-            live_mic_pressed = L1_BUTTON in pressed
             pressed, dpad = get_pressed_buttons()
             manual_pressed = CROSS_BUTTON in pressed      # athugar set
             autopilot_pressed = TRIANGLE_BUTTON in pressed
             stop_pressed = CIRCLE_BUTTON in pressed
             camera_pressed = SQUARE_BUTTON in pressed
+            live_mic_pressed = L1_BUTTON in pressed
             rain_pressed = dpad == (0, 1)
             fireball_pressed = dpad == (0, -1)
             mr_pressed = dpad == (1, 0)
