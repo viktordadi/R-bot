@@ -86,3 +86,7 @@ def stop_faaah():
 def speech():
   pygame.mixer.music.load("speech.mp3")
   pygame.mixer.music.play()
+
+def honk():
+    pygame.mixer.music.load("honk.mp3")
+    pygame.mixer.music.load()
