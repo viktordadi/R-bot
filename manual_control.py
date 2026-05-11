@@ -41,7 +41,7 @@ def send_to_motor(m1, m2):
 
 # skilgreina skipanir
 def go_forward():
-    send_to_motor(motor_speed, -motor_speed*1.05)
+    send_to_motor(motor_speed*0.95, -motor_speed)
 
 def go_forward_slow():
     send_to_motor(motor_speed*0.6, -motor_speed*0.6)
