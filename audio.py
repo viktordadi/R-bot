@@ -17,8 +17,8 @@ def start_pi_audio_receiver():
     pygame.mixer.music.stop()
 
     command = (
-        "nc -lk 5005 | "
-        "pw-cat --playback --format s16 --rate 48000 --channels 2 -"
+        "nc -lu 5005 | "
+        "pw-cat --playback --raw --format s16 --rate 48000 --channels 2 -"
     )
 
     live_mic_process = subprocess.Popen(
