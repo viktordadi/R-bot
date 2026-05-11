@@ -43,15 +43,17 @@ camera_mode = CAMERA_OFF
 
 live_mic_running = False
 
+live_mic_running = False
+
 def toggle_live_mic():
     global live_mic_running
 
     if not live_mic_running:
-        audio.start_live_mic_receiver()
+        audio.start_pi_audio_receiver()
         live_mic_running = True
         print("Live mic receiver ON")
     else:
-        audio.stop_live_mic_receiver()
+        audio.stop_pi_audio_receiver()
         live_mic_running = False
         print("Live mic receiver OFF")
       
