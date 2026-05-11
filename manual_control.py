@@ -81,7 +81,7 @@ def manual_step():
         return False
 
     m1 = throttle * motor_speed + steering * motor_speed * 0.6
-    m2 = (-throttle * motor_speed + steering * motor_speed * 0.6) * 0.95
+    m2 = (-throttle * motor_speed + steering * motor_speed * 0.6) * 0.93
 
     with i2c_lock:
         send_to_motor(m1, m2)
