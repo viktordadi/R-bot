@@ -28,7 +28,7 @@ def send_to_motor(m1, m2):
 # splitar hrada + stefnu 
     m1_speed = abs(m1)
     m1_sign = 0 if m1 >= 0 else 1
-    m2_speed = abs(m2*0.95)
+    m2_speed = abs(m2)
     m2_sign = 0 if m2 >= 0 else 1
     data = [m1_speed, m1_sign, m2_speed, m2_sign]
   
@@ -81,7 +81,7 @@ def manual_step():
         return False
 
     m1 = throttle * motor_speed + steering * motor_speed * 0.6
-    m2 = -throttle * motor_speed + steering * motor_speed * 0.6
+    m2 = (-throttle * motor_speed + steering * motor_speed * 0.6) * 0.95
 
     with i2c_lock:
         send_to_motor(m1, m2)
