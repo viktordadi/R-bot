@@ -84,7 +84,7 @@ WINDOW_SIZE_H_W = (IMAGE_HEIGHT, IMAGE_WIDTH)
 FPS = 10
 
 DETECTION_THRESHOLD = 0.3
-MIN_KEYPOINT_CONFIDENCE = 0.2
+MIN_KEYPOINT_CONFIDENCE = 0.1
 
 
 # ------------------------------------------------------------
@@ -217,12 +217,12 @@ def get_pose_command(person_keypoints):
         return "stop"
 
     # LEFT: either wrist far to the LEFT side of the body
-    if lwx < shoulder_center_x - 80 or rwx < shoulder_center_x - 80:
+    if lwx < shoulder_center_x - 50 or rwx < shoulder_center_x - 50:
         print("DEBUG gesture: left")
         return "left"
 
     # RIGHT: either wrist far to the RIGHT side of the body
-    if lwx > shoulder_center_x + 80 or rwx > shoulder_center_x + 80:
+    if lwx > shoulder_center_x + 50 or rwx > shoulder_center_x + 50:
         print("DEBUG gesture: right")
         return "right"
 
