@@ -149,7 +149,7 @@ def main():
             mr_pressed = dpad == (1, 0)
             speech_pressed = dpad == (-1, 0)
 
-            if honk_pressed
+            if honk_pressed:
               audio.honk()
 
             if volume_down_pressed:
