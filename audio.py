@@ -14,8 +14,8 @@ def start_pi_audio_receiver():
         print("Live mic receiver already running")
         return
 
-    # -k keeps listening after disconnects
-    # aplay uses your USB speaker: plughw:3,0
+    pygame.mixer.music.stop()
+
     command = (
         "nc -lk 5005 | "
         "aplay -D plughw:3,0 -f S16_LE -r 48000 -c 2 -"
