@@ -122,6 +122,8 @@ def main():
             camera_pressed = SQUARE_BUTTON in pressed
             rain_pressed = dpad == (0, 1)
             fireball_pressed = dpad == (0, -1)
+            mr_pressed = dpad == (1, 0)
+            speech_pressed = dpad == (-1, 0)
 
             if camera_pressed:
               switch_camera_mode()
@@ -140,6 +142,11 @@ def main():
 
             if fireball_pressed:
               audio.fireball()
+
+            if mr_pressed:
+              audio.mr_worldwide()
+
+            
 
             if manual_pressed and mode != MODE_MANUAL:
                 mode = MODE_MANUAL
