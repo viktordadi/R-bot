@@ -106,46 +106,32 @@ def point_ok(point, min_confidence=MIN_KEYPOINT_CONFIDENCE):
 
 def left_arm_up(person_keypoints):
     shoulder = person_keypoints[LEFT_SHOULDER]
-    elbow = person_keypoints[LEFT_ELBOW]
     wrist = person_keypoints[LEFT_WRIST]
 
     sx, sy, sc = shoulder
-    ex, ey, ec = elbow
     wx, wy, wc = wrist
 
     if not point_ok(shoulder):
         return False
-    if not point_ok(elbow):
-        return False
     if not point_ok(wrist):
         return False
 
-    wrist_above_shoulder = wy < sy
-    elbow_above_shoulder = ey < sy
-
-    return wrist_above_shoulder and elbow_above_shoulder
+    return wy < sy - 30
 
 
 def right_arm_up(person_keypoints):
     shoulder = person_keypoints[RIGHT_SHOULDER]
-    elbow = person_keypoints[RIGHT_ELBOW]
     wrist = person_keypoints[RIGHT_WRIST]
 
     sx, sy, sc = shoulder
-    ex, ey, ec = elbow
     wx, wy, wc = wrist
 
     if not point_ok(shoulder):
         return False
-    if not point_ok(elbow):
-        return False
     if not point_ok(wrist):
         return False
 
-    wrist_above_shoulder = wy < sy
-    elbow_above_shoulder = ey < sy
-
-    return wrist_above_shoulder and elbow_above_shoulder
+    return wy < sy - 30
 
 
 def left_arm_out_left(person_keypoints, image_width=IMAGE_WIDTH):
