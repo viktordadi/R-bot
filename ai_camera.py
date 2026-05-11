@@ -189,13 +189,41 @@ def get_pose_command(person_keypoints):
         None
     """
 
-    if left_arm_up(person_keypoints) or right_arm_up(person_keypoints):
+    left_shoulder = person_keypoints[LEFT_SHOULDER]
+    right_shoulder = person_keypoints[RIGHT_SHOULDER]
+    left_wrist = person_keypoints[LEFT_WRIST]
+    right_wrist = person_keypoints[RIGHT_WRIST]
+
+    if not point_ok(left_shoulder):
+        return None
+    if not point_ok(right_shoulder):
+        return None
+    if not point_ok(left_wrist):
+        return None
+    if not point_ok(right_wrist):
+        return None
+
+    lsx, lsy, lsc = left_shoulder
+    rsx, rsy, rsc = right_shoulder
+    lwx, lwy, lwc = left_wrist
+    rwx, rwy, rwc = right_wrist
+
+    shoulder_center_x = (lsx + rsx) / 2
+    shoulder_center_y = (lsy + rsy) / 2
+
+    # STOP: either wrist clearly above shoulders
+    if lwy < shoulder_center_y - 40 or rwy < shoulder_center_y - 40:
+        print("DEBUG gesture: stop")
         return "stop"
 
-    if left_arm_out_left(person_keypoints):
+    # LEFT: either wrist far to the LEFT side of the body
+    if lwx < shoulder_center_x - 120 or rwx < shoulder_center_x - 120:
+        print("DEBUG gesture: left")
         return "left"
 
-    if right_arm_out_right(person_keypoints):
+    # RIGHT: either wrist far to the RIGHT side of the body
+    if lwx > shoulder_center_x + 120 or rwx > shoulder_center_x + 120:
+        print("DEBUG gesture: right")
         return "right"
 
     return None
