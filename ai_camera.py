@@ -217,12 +217,12 @@ def get_pose_command(person_keypoints):
         return "stop"
 
     # LEFT: either wrist far to the LEFT side of the body
-    if lwx < shoulder_center_x - 120 or rwx < shoulder_center_x - 120:
+    if lwx < shoulder_center_x - 80 or rwx < shoulder_center_x - 80:
         print("DEBUG gesture: left")
         return "left"
 
     # RIGHT: either wrist far to the RIGHT side of the body
-    if lwx > shoulder_center_x + 120 or rwx > shoulder_center_x + 120:
+    if lwx > shoulder_center_x + 80 or rwx > shoulder_center_x + 80:
         print("DEBUG gesture: right")
         return "right"
 
