@@ -136,66 +136,48 @@ def right_arm_up(person_keypoints):
 
 def left_arm_out_left(person_keypoints, image_width=IMAGE_WIDTH):
     shoulder = person_keypoints[LEFT_SHOULDER]
-    elbow = person_keypoints[LEFT_ELBOW]
     wrist = person_keypoints[LEFT_WRIST]
 
     sx, sy, sc = shoulder
-    ex, ey, ec = elbow
     wx, wy, wc = wrist
 
     if not point_ok(shoulder):
         return False
-    if not point_ok(elbow):
-        return False
     if not point_ok(wrist):
         return False
 
-    min_side_distance = image_width * 0.15
+    # Úlnliður þarf bara að vera nógu langt vinstra megin við öxlina
+    min_side_distance = image_width * 0.12
 
     wrist_left_of_shoulder = wx < sx - min_side_distance
-    elbow_left_of_shoulder = ex < sx
 
-    arm_horizontal = abs(wy - sy) < image_width * 0.20
-    wrist_elbow_aligned = abs(wy - ey) < image_width * 0.15
+    # Ekki leyfa "arm up" að teljast sem left
+    not_too_high = wy > sy - image_width * 0.25
 
-    return (
-        wrist_left_of_shoulder
-        and elbow_left_of_shoulder
-        and arm_horizontal
-        and wrist_elbow_aligned
-    )
+    return wrist_left_of_shoulder and not_too_high
 
 
 def right_arm_out_right(person_keypoints, image_width=IMAGE_WIDTH):
     shoulder = person_keypoints[RIGHT_SHOULDER]
-    elbow = person_keypoints[RIGHT_ELBOW]
     wrist = person_keypoints[RIGHT_WRIST]
 
     sx, sy, sc = shoulder
-    ex, ey, ec = elbow
     wx, wy, wc = wrist
 
     if not point_ok(shoulder):
         return False
-    if not point_ok(elbow):
-        return False
     if not point_ok(wrist):
         return False
 
-    min_side_distance = image_width * 0.15
+    # Úlnliður þarf bara að vera nógu langt hægra megin við öxlina
+    min_side_distance = image_width * 0.12
 
     wrist_right_of_shoulder = wx > sx + min_side_distance
-    elbow_right_of_shoulder = ex > sx
 
-    arm_horizontal = abs(wy - sy) < image_width * 0.20
-    wrist_elbow_aligned = abs(wy - ey) < image_width * 0.15
+    # Ekki leyfa "arm up" að teljast sem right
+    not_too_high = wy > sy - image_width * 0.25
 
-    return (
-        wrist_right_of_shoulder
-        and elbow_right_of_shoulder
-        and arm_horizontal
-        and wrist_elbow_aligned
-    )
+    return wrist_right_of_shoulder and not_too_high
 
 
 def get_pose_command(person_keypoints):
