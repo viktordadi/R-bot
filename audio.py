@@ -32,6 +32,6 @@ def faaah():
 def stop_faaah():
     pygame.mixer.music.stop()
 
-def sus():
-  pygame.mixer.music.load("sus.mp3")
+def speech():
+  pygame.mixer.music.load("speech.mp3")
   pygame.mixer.music.play()
