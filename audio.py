@@ -91,6 +91,6 @@ def honk():
     pygame.mixer.music.load("honk.mp3")
     pygame.mixer.music.play()
 
-def exit()
+def exit():
     pygame.mixer.music.load("exit.mp3")
     pygame.mixer.music.play()
