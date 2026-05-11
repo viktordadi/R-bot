@@ -22,6 +22,8 @@ import camera_stream
 
 
 # PS5 button mappings in pygame
+L3_BUTTON = 10         # L3 = volume down
+R3_BUTTON = 11         # R3 = volume up
 L1_BUTTON = 4          # L1 = start/stop live mic receiver
 CROSS_BUTTON = 0       # X = manual / handstýring
 CIRCLE_BUTTON = 1      # Circle = stoppa og hætta
@@ -138,10 +140,18 @@ def main():
             stop_pressed = CIRCLE_BUTTON in pressed
             camera_pressed = SQUARE_BUTTON in pressed
             live_mic_pressed = L1_BUTTON in pressed
+            volume_down_pressed = L3_BUTTON in pressed
+            volume_up_pressed = R3_BUTTON in pressed
             rain_pressed = dpad == (0, 1)
             fireball_pressed = dpad == (0, -1)
             mr_pressed = dpad == (1, 0)
             speech_pressed = dpad == (-1, 0)
+
+            if volume_down_pressed:
+              audio.volume_down()
+
+            if volume_up_pressed:
+              audio.volume_up()
 
             if live_mic_pressed:
               toggle_live_mic()
