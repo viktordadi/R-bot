@@ -181,14 +181,6 @@ def right_arm_out_right(person_keypoints, image_width=IMAGE_WIDTH):
 
 
 def get_pose_command(person_keypoints):
-    """
-    Returns:
-        "stop"
-        "left"
-        "right"
-        None
-    """
-
     left_shoulder = person_keypoints[LEFT_SHOULDER]
     right_shoulder = person_keypoints[RIGHT_SHOULDER]
     left_wrist = person_keypoints[LEFT_WRIST]
@@ -208,26 +200,30 @@ def get_pose_command(person_keypoints):
     lwx, lwy, lwc = left_wrist
     rwx, rwy, rwc = right_wrist
 
-    shoulder_center_x = (lsx + rsx) / 2
     shoulder_center_y = (lsy + rsy) / 2
 
-    # STOP: either wrist clearly above shoulders
+    # finna hvor öxlin er vinstra/hægra megin í myndinni
+    left_edge_x = min(lsx, rsx)
+    right_edge_x = max(lsx, rsx)
+
+    margin = 80
+
+    # STOP: einhver úlnliður greinilega fyrir ofan axlir
     if lwy < shoulder_center_y - 40 or rwy < shoulder_center_y - 40:
         print("DEBUG gesture: stop")
         return "stop"
 
-    # LEFT: either wrist far to the LEFT side of the body
-    if lwx < shoulder_center_x - 50 or rwx < shoulder_center_x - 50:
+    # LEFT: einhver hönd er vel fyrir utan vinstri öxl
+    if lwx < left_edge_x - margin or rwx < left_edge_x - margin:
         print("DEBUG gesture: left")
         return "left"
 
-    # RIGHT: either wrist far to the RIGHT side of the body
-    if lwx > shoulder_center_x + 50 or rwx > shoulder_center_x + 50:
+    # RIGHT: einhver hönd er vel fyrir utan hægri öxl
+    if lwx > right_edge_x + margin or rwx > right_edge_x + margin:
         print("DEBUG gesture: right")
         return "right"
 
     return None
-
 
 def parse_pose_output(metadata):
     outputs = imx500.get_outputs(metadata=metadata, add_batch=True)
