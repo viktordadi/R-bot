@@ -28,7 +28,7 @@ def send_to_motor(m1, m2):
 # splitar hrada + stefnu 
     m1_speed = abs(m1)
     m1_sign = 0 if m1 >= 0 else 1
-    m2_speed = abs(m2)
+    m2_speed = abs(m2*0.95)
     m2_sign = 0 if m2 >= 0 else 1
     data = [m1_speed, m1_sign, m2_speed, m2_sign]
   
@@ -41,7 +41,7 @@ def send_to_motor(m1, m2):
 
 # skilgreina skipanir
 def go_forward():
-    send_to_motor(motor_speed, -motor_speed*0.95)
+    send_to_motor(motor_speed, -motor_speed)
 
 def go_forward_slow():
     send_to_motor(motor_speed*0.6, -motor_speed*0.6)
