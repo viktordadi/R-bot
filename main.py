@@ -66,7 +66,7 @@ def switch_camera_mode():
     if camera_mode == CAMERA_OFF:
         print("Switching camera mode: AI camera")
         stop_all_camera_modes()
-        ai_camera.start_gesture_camera(show_preview=False)
+        ai_camera.start_gesture_camera(show_preview=True)
         camera_mode = CAMERA_AI
 
     elif camera_mode == CAMERA_AI:
