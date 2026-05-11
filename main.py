@@ -146,6 +146,9 @@ def main():
             if mr_pressed:
               audio.mr_worldwide()
 
+            if speech_pressed:
+              audio.speech()
+
             
 
             if manual_pressed and mode != MODE_MANUAL:
