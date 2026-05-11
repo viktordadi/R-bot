@@ -89,4 +89,4 @@ def speech():
 
 def honk():
     pygame.mixer.music.load("honk.mp3")
-    pygame.mixer.music.load()
+    pygame.mixer.music.play()
