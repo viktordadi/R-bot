@@ -18,7 +18,7 @@ def start_pi_audio_receiver():
 
     command = (
         "nc -lk 5005 | "
-        "aplay -D plughw:3,0 -f S16_LE -r 48000 -c 2 -"
+        "pw-cat --playback --format s16 --rate 48000 --channels 2 -"
     )
 
     live_mic_process = subprocess.Popen(
