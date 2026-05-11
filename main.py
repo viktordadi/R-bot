@@ -167,6 +167,7 @@ def main():
 
             if stop_pressed:
                 print("Stop button pressed. Stopping robot.")
+                audio.exit()
                 autopilot.stop_servo_loop()
                 mode = MODE_STOPPED
                 autopilot.stop()
