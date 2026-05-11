@@ -22,6 +22,7 @@ import camera_stream
 
 
 # PS5 button mappings in pygame
+L1_BUTTON = 4          # L1 = start/stop live mic receiver
 CROSS_BUTTON = 0       # X = manual / handstýring
 CIRCLE_BUTTON = 1      # Circle = stoppa og hætta
 TRIANGLE_BUTTON = 2    # Triangle = autopilot
@@ -40,6 +41,20 @@ CAMERA_STREAM = "stream"
 
 camera_mode = CAMERA_OFF
 
+live_mic_running = False
+
+def toggle_live_mic():
+    global live_mic_running
+
+    if not live_mic_running:
+        audio.start_live_mic_receiver()
+        live_mic_running = True
+        print("Live mic receiver ON")
+    else:
+        audio.stop_live_mic_receiver()
+        live_mic_running = False
+        print("Live mic receiver OFF")
+      
 def stop_all_camera_modes():
     try:
         ai_camera.stop_gesture_camera()
@@ -115,6 +130,7 @@ def main():
         while True:
             # Lesum bara mode-takkana hér.
             # Sjálf handstýringin er inni í manual_control.manual_step().
+            live_mic_pressed = L1_BUTTON in pressed
             pressed, dpad = get_pressed_buttons()
             manual_pressed = CROSS_BUTTON in pressed      # athugar set
             autopilot_pressed = TRIANGLE_BUTTON in pressed
@@ -124,6 +140,9 @@ def main():
             fireball_pressed = dpad == (0, -1)
             mr_pressed = dpad == (1, 0)
             speech_pressed = dpad == (-1, 0)
+
+            if live_mic_pressed:
+              toggle_live_mic()
 
             if camera_pressed:
               switch_camera_mode()
@@ -186,6 +205,7 @@ def main():
 
     finally:
         stop_all_camera_modes()
+        audio.stop_live_mic_receiver()
         autopilot.stop_servo_loop()
         autopilot.stop()
         manual_control.stop()
