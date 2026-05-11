@@ -8,6 +8,15 @@ live_mic_process = None
 
 # ffmpeg -f dshow -i audio="Microphone Array (Realtek(R) Audio)" -filter:a "volume=8" -ar 48000 -ac 2 -f s16le udp://10.98.211.36:5005
 
+def volume_up():
+    subprocess.run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%+"], check=False)
+    print("Volume up")
+
+
+def volume_down():
+    subprocess.run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-"], check=False)
+    print("Volume down")
+
 def start_pi_audio_receiver():
     global live_mic_process
 
