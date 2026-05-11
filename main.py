@@ -207,7 +207,7 @@ def main():
 
     finally:
         stop_all_camera_modes()
-        audio.stop_live_mic_receiver()
+        audio.stop_pi_audio_receiver()
         autopilot.stop_servo_loop()
         autopilot.stop()
         manual_control.stop()
