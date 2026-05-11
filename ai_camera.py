@@ -369,7 +369,7 @@ def start_gesture_camera(show_preview=False):
     picam2 = Picamera2(imx500.camera_num)
 
     config = picam2.create_preview_configuration(
-        main={"size": (IMAGE_WIDTH, IMAGE_HEIGHT), "format": "RGB888"},
+        main={"size": (IMAGE_WIDTH, IMAGE_HEIGHT), "format": "XRGB8888"},
         controls={"FrameRate": intrinsics.inference_rate},
         buffer_count=3,
     )
