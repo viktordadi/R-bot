@@ -187,13 +187,14 @@ def follow_person_step():
     # -----------------------------
     # Distance settings
     # -----------------------------
-    TOO_CLOSE_CM = 30
+    settings = dashboard.get_follow_settings()
+    TOO_CLOSE_CM = settings["too_close_cm"]
 
     # Robot tries to stay around this distance.
-    TARGET_DISTANCE_CM = 45
+    TARGET_DISTANCE_CM = settings["target_distance_cm"]
 
     # If farther than this, move forward.
-    MOVE_FORWARD_CM = 75
+    MOVE_FORWARD_CM = settings["move_forward_cm"]
 
     # -----------------------------
     # Steering settings
@@ -201,10 +202,10 @@ def follow_person_step():
     DEADZONE = 0.15
 
     # Lower = turns less.
-    TURN_GAIN = 0.45
+    TURN_GAIN = settings["turn_gain"]
 
     # Lower = drives slower.
-    FORWARD_SPEED = 0.70
+    FORWARD_SPEED = settings["follow_speed"]
 
     # -----------------------------
     # Safety
