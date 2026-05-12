@@ -17,4 +17,4 @@ while True:
         pixels.fill((0, 0, 0))
         pixels[i] = (255, 0, 0)
         pixels.show()
-        time.sleep(0.05)
+        time.sleep(0.5)
