@@ -21,6 +21,8 @@ bus = smbus.SMBus(1)
 
 MOTOR_ADDRESS = 0x50
 motor_speed = 220
+search_direction = 1
+last_search_switch_time = 0
 
 
 servo_thread = None
@@ -250,6 +252,67 @@ def follow_person_step():
 
     with i2c_lock:
         drive_smooth(forward, turn)
+
+
+def search_person_step():
+    """
+    Search mode.
+
+    Slowly turns left/right until the AI camera sees a person.
+
+    Returns:
+        True  = person found
+        False = still searching
+    """
+
+    global search_direction, last_search_switch_time
+
+    person_offset = get_person_center_offset()
+
+    # If AI sees a person, stop searching.
+    if person_offset is not None:
+        print("SEARCH: person found")
+        stop()
+        dashboard.set_status(
+            mode="search",
+            person_position=f"found offset={person_offset:.2f}",
+            follow_action="person found",
+        )
+        return True
+
+    now = time.time()
+
+    # Change direction every 2 seconds.
+    if now - last_search_switch_time > 2.0:
+        search_direction *= -1
+        last_search_switch_time = now
+
+    search_speed = motor_speed * 0.20
+
+    try:
+        with i2c_lock:
+            if search_direction < 0:
+                print("SEARCH: turning left")
+                send_to_motor(-search_speed, -search_speed)
+                dashboard.set_status(
+                    mode="search",
+                    person_position="no person",
+                    follow_action="searching left",
+                )
+            else:
+                print("SEARCH: turning right")
+                send_to_motor(search_speed, search_speed)
+                dashboard.set_status(
+                    mode="search",
+                    person_position="no person",
+                    follow_action="searching right",
+                )
+
+    except OSError as e:
+        print("SEARCH motor I2C error:", e)
+        stop()
+
+    return False
 
 
 def autopilot_step():
