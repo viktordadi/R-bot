@@ -21,15 +21,16 @@ robot_status = {
     "dist_R": None,
 }
 
-# Follow mode settings.
-# autopilot.py can read these with:
+# Follow mode + audio settings.
+# autopilot.py can read follow settings with:
 #   dashboard.get_follow_settings()
-follow_settings = {
+settings = {
     "follow_speed": 0.55,
     "turn_gain": 0.40,
     "too_close_cm": 35,
     "target_distance_cm": 50,
     "move_forward_cm": 60,
+    "volume_percent": 80,
 }
 
 status_lock = threading.Lock()
@@ -79,21 +80,53 @@ def get_status_copy():
         return robot_status.copy()
 
 
-def set_follow_setting(name, value):
+def set_setting(name, value):
     """
-    Updates one follow setting.
+    Updates one dashboard setting.
     """
     with settings_lock:
-        if name in follow_settings:
-            follow_settings[name] = value
+        if name in settings:
+            settings[name] = value
+
+
+def get_settings():
+    """
+    Returns all dashboard settings.
+    """
+    with settings_lock:
+        return settings.copy()
 
 
 def get_follow_settings():
     """
     Returns current follow mode slider settings.
+
+    autopilot.py should use this.
     """
     with settings_lock:
-        return follow_settings.copy()
+        return {
+            "follow_speed": settings["follow_speed"],
+            "turn_gain": settings["turn_gain"],
+            "too_close_cm": settings["too_close_cm"],
+            "target_distance_cm": settings["target_distance_cm"],
+            "move_forward_cm": settings["move_forward_cm"],
+        }
+
+
+def set_system_volume(percent):
+    """
+    Sets Raspberry Pi output volume using PipeWire wpctl.
+    """
+    try:
+        percent = max(0, min(150, int(percent)))
+
+        subprocess.run(
+            ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{percent}%"],
+            check=False,
+        )
+
+    except Exception as e:
+        print("Volume set error:", e)
 
 
 def set_pending_command(command):
@@ -178,8 +211,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 data = json.loads(body)
 
                 for name, value in data.items():
-                    if name in follow_settings:
-                        set_follow_setting(name, float(value))
+                    if name in settings:
+                        value = float(value)
+                        set_setting(name, value)
+
+                        if name == "volume_percent":
+                            set_system_volume(value)
 
                 self.send_response(200)
                 self.send_header("Content-type", "text/plain")
@@ -308,6 +345,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
             margin-top: 10px;
         }
 
+        .saved {
+            color: #7ee787;
+        }
+
+        .saving {
+            color: #ffd866;
+        }
+
+        .failed {
+            color: #ff6b6b;
+        }
+
         @media (max-width: 900px) {
             .container {
                 grid-template-columns: 1fr;
@@ -330,7 +379,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             </div>
 
             <div class="card">
-                <h2>Follow Settings</h2>
+                <h2>Live Settings</h2>
 
                 <div class="slider-row">
                     <label>Follow speed: <span class="slider-value" id="follow_speed_value"></span></label>
@@ -357,7 +406,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     <input id="move_forward_cm" type="range" min="25" max="200" step="1">
                 </div>
 
-                <button onclick="saveSettings()">Save Follow Settings</button>
+                <div class="slider-row">
+                    <label>Volume %: <span class="slider-value" id="volume_percent_value"></span></label>
+                    <input id="volume_percent" type="range" min="0" max="150" step="5">
+                </div>
 
                 <div class="small" id="settings_status"></div>
             </div>
@@ -408,6 +460,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         document.getElementById("camera").src =
             "http://" + window.location.hostname + ":8080/stream.mjpg";
 
+        let saveTimer = null;
+
         function showValue(value) {
             if (value === null || value === undefined) {
                 return "None";
@@ -452,13 +506,25 @@ class DashboardHandler(BaseHTTPRequestHandler):
             }
         }
 
+        function getSliderData() {
+            return {
+                follow_speed: parseFloat(document.getElementById("follow_speed").value),
+                turn_gain: parseFloat(document.getElementById("turn_gain").value),
+                too_close_cm: parseFloat(document.getElementById("too_close_cm").value),
+                target_distance_cm: parseFloat(document.getElementById("target_distance_cm").value),
+                move_forward_cm: parseFloat(document.getElementById("move_forward_cm").value),
+                volume_percent: parseFloat(document.getElementById("volume_percent").value)
+            };
+        }
+
         function updateSliderLabels() {
             const keys = [
                 "follow_speed",
                 "turn_gain",
                 "too_close_cm",
                 "target_distance_cm",
-                "move_forward_cm"
+                "move_forward_cm",
+                "volume_percent"
             ];
 
             for (const key of keys) {
@@ -471,18 +537,25 @@ class DashboardHandler(BaseHTTPRequestHandler):
             }
         }
 
+        function scheduleSaveSettings() {
+            updateSliderLabels();
+
+            const status = document.getElementById("settings_status");
+            status.textContent = "Saving...";
+            status.className = "small saving";
+
+            if (saveTimer !== null) {
+                clearTimeout(saveTimer);
+            }
+
+            // Small delay so it does not send hundreds of requests while dragging.
+            saveTimer = setTimeout(saveSettings, 150);
+        }
+
         async function saveSettings() {
-            const data = {
-                follow_speed: parseFloat(document.getElementById("follow_speed").value),
-                turn_gain: parseFloat(document.getElementById("turn_gain").value),
-                too_close_cm: parseFloat(document.getElementById("too_close_cm").value),
-                target_distance_cm: parseFloat(document.getElementById("target_distance_cm").value),
-                move_forward_cm: parseFloat(document.getElementById("move_forward_cm").value)
-            };
+            const data = getSliderData();
 
             try {
-                document.getElementById("settings_status").textContent = "Saving settings...";
-
                 await fetch("/settings", {
                     method: "POST",
                     headers: {
@@ -491,9 +564,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     body: JSON.stringify(data)
                 });
 
-                document.getElementById("settings_status").textContent = "Settings saved";
+                const status = document.getElementById("settings_status");
+                status.textContent = "Settings saved";
+                status.className = "small saved";
+
             } catch (error) {
-                document.getElementById("settings_status").textContent = "Settings failed";
+                const status = document.getElementById("settings_status");
+                status.textContent = "Settings failed";
+                status.className = "small failed";
                 console.log(error);
             }
         }
@@ -518,7 +596,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         const sliders = document.querySelectorAll("input[type=range]");
         sliders.forEach(slider => {
-            slider.addEventListener("input", updateSliderLabels);
+            slider.addEventListener("input", scheduleSaveSettings);
         });
 
         setInterval(updateStatus, 500);
@@ -544,7 +622,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data).encode())
 
     def send_settings(self):
-        data = get_follow_settings()
+        data = get_settings()
 
         self.send_response(200)
         self.send_header("Content-type", "application/json")
