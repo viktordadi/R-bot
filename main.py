@@ -216,17 +216,17 @@ def main():
 
 
             elif follow_pressed and mode != MODE_FOLLOW:
-              mode = MODE_FOLLOW
+                mode = MODE_FOLLOW
 
-              if camera_mode != CAMERA_AI:
+                if camera_mode != CAMERA_AI:
                   stop_all_camera_modes()
                   ai_camera.start_gesture_camera(show_preview=False)
                   camera_mode = CAMERA_AI
 
-              autopilot.start_servo_loop()
-              autopilot.stop()
-              manual_control.stop()
-              print("Mode: follow person")
+                autopilot.stop_servo_loop()
+                autopilot.stop()
+                manual_control.stop()
+                print("Mode: follow person")
 
             if mode == MODE_MANUAL:
                 keep_running = manual_control.manual_step()
