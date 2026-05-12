@@ -2,27 +2,19 @@ import board
 import neopixel
 import time
 
-NUM_LEDS = 60  # change this to your real LED count
+NUM_LEDS = 60
 
 pixels = neopixel.NeoPixel(
     board.D18,
     NUM_LEDS,
-    brightness=0.03,
+    brightness=0.05,
     auto_write=False,
     pixel_order=neopixel.GRB
 )
 
-pixels.fill((255, 0, 0))
-pixels.show()
-time.sleep(2)
-
-pixels.fill((0, 255, 0))
-pixels.show()
-time.sleep(2)
-
-pixels.fill((0, 0, 255))
-pixels.show()
-time.sleep(2)
-
-pixels.fill((0, 0, 0))
-pixels.show()
+while True:
+    for i in range(NUM_LEDS):
+        pixels.fill((0, 0, 0))
+        pixels[i] = (255, 0, 0)
+        pixels.show()
+        time.sleep(0.05)
