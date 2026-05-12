@@ -1,4 +1,3 @@
-
 import time
 import subprocess
 import pygame
@@ -6,10 +5,10 @@ import pygame
 ROBOT_DIR = "/home/viktor/R-bot"
 MAIN_FILE = "/home/viktor/R-bot/main.py"
 
-
 PS_BUTTON = 10
 
 main_process = None
+controller = None
 
 
 def start_main():
@@ -44,24 +43,59 @@ def stop_main():
     main_process = None
 
 
-def main():
-    pygame.init()
+def connect_controller():
+    """
+    Tries to connect to the first available controller.
+    Returns the controller if found, otherwise None.
+    """
+
+    pygame.joystick.quit()
     pygame.joystick.init()
 
     if pygame.joystick.get_count() == 0:
-        print("No controller found.")
-        return
+        return None
 
-    controller = pygame.joystick.Joystick(0)
-    controller.init()
+    joy = pygame.joystick.Joystick(0)
+    joy.init()
+
+    print("Controller connected:")
+    print(joy.get_name())
+
+    return joy
+
+
+def main():
+    global controller
+
+    pygame.init()
+    pygame.joystick.init()
 
     print("Launcher running.")
-    print("Press PlayStation button to start main.py.")
+    print("Waiting for controller...")
 
     try:
         while True:
+            # If no controller is connected, keep checking.
+            if controller is None:
+                controller = connect_controller()
+
+                if controller is None:
+                    time.sleep(1.0)
+                    continue
+
+                print("Press PlayStation button to start main.py.")
+
+            # Read controller events.
             for event in pygame.event.get():
-                if event.type == pygame.JOYBUTTONDOWN:
+                if event.type == pygame.JOYDEVICEREMOVED:
+                    print("Controller disconnected.")
+                    controller = None
+
+                elif event.type == pygame.JOYDEVICEADDED:
+                    print("Controller added.")
+                    controller = connect_controller()
+
+                elif event.type == pygame.JOYBUTTONDOWN:
                     if event.button == PS_BUTTON:
                         start_main()
 
