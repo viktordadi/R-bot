@@ -9,6 +9,7 @@ PS_BUTTON = 10
 
 main_process = None
 controller = None
+controller_was_missing = True
 
 
 def start_main():
@@ -44,11 +45,6 @@ def stop_main():
 
 
 def connect_controller():
-    """
-    Tries to connect to the first available controller.
-    Returns the controller if found, otherwise None.
-    """
-
     pygame.joystick.quit()
     pygame.joystick.init()
 
@@ -57,15 +53,11 @@ def connect_controller():
 
     joy = pygame.joystick.Joystick(0)
     joy.init()
-
-    print("Controller connected:")
-    print(joy.get_name())
-
     return joy
 
 
 def main():
-    global controller
+    global controller, controller_was_missing
 
     pygame.init()
     pygame.joystick.init()
@@ -75,25 +67,34 @@ def main():
 
     try:
         while True:
-            # If no controller is connected, keep checking.
             if controller is None:
                 controller = connect_controller()
 
                 if controller is None:
+                    if not controller_was_missing:
+                        print("Controller disconnected. Waiting...")
+                        controller_was_missing = True
+
                     time.sleep(1.0)
                     continue
 
-                print("Press PlayStation button to start main.py.")
+                if controller_was_missing:
+                    print("Controller connected:", controller.get_name())
+                    print("Press PlayStation button to start main.py.")
+                    controller_was_missing = False
 
-            # Read controller events.
             for event in pygame.event.get():
                 if event.type == pygame.JOYDEVICEREMOVED:
-                    print("Controller disconnected.")
                     controller = None
+                    controller_was_missing = False
 
                 elif event.type == pygame.JOYDEVICEADDED:
-                    print("Controller added.")
                     controller = connect_controller()
+
+                    if controller is not None and controller_was_missing:
+                        print("Controller connected:", controller.get_name())
+                        print("Press PlayStation button to start main.py.")
+                        controller_was_missing = False
 
                 elif event.type == pygame.JOYBUTTONDOWN:
                     if event.button == PS_BUTTON:
