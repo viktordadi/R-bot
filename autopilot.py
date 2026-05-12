@@ -179,7 +179,7 @@ def follow_person_step():
 
     if person_position == "center":
         print("FOLLOW: person center")
-        go_forward_slow()
+        go_forward()
         return
 
     stop()
