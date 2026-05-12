@@ -98,6 +98,9 @@ camera_started = False
 imx500 = None
 picam2 = None
 
+current_person_position = None
+person_lock = threading.Lock()
+
 
 def point_ok(point, min_confidence=MIN_KEYPOINT_CONFIDENCE):
     x, y, confidence = point
@@ -302,18 +305,94 @@ def draw_command_text(frame, command):
     )
 
 
+def get_person_follow_command(person_keypoints):
+    """
+    Returns:
+        "left"        = person is left, robot should turn left
+        "center"      = person is centered, robot can go forward
+        "right"       = person is right, robot should turn right
+        "stop_edge"   = person is nearly out of frame
+        None          = person not reliable
+    """
+
+    # Use shoulders and hips to estimate body position.
+    points_to_use = [
+        person_keypoints[LEFT_SHOULDER],
+        person_keypoints[RIGHT_SHOULDER],
+        person_keypoints[LEFT_HIP],
+        person_keypoints[RIGHT_HIP],
+    ]
+
+    good_points = []
+
+    for point in points_to_use:
+        x, y, confidence = point
+        if confidence >= MIN_KEYPOINT_CONFIDENCE:
+            good_points.append(point)
+
+    if len(good_points) < 2:
+        return None
+
+    xs = [p[0] for p in good_points]
+
+    person_left_x = min(xs)
+    person_right_x = max(xs)
+    person_center_x = sum(xs) / len(xs)
+
+    image_center_x = IMAGE_WIDTH / 2
+
+    # If person is close to the edge, stop.
+    edge_margin = IMAGE_WIDTH * 0.12
+
+    if person_left_x < edge_margin:
+        print("FOLLOW: person nearly out of frame left")
+        return "stop_edge"
+
+    if person_right_x > IMAGE_WIDTH - edge_margin:
+        print("FOLLOW: person nearly out of frame right")
+        return "stop_edge"
+
+    # How far from center before turning.
+    center_deadzone = IMAGE_WIDTH * 0.15
+
+    if person_center_x < image_center_x - center_deadzone:
+        return "left"
+
+    if person_center_x > image_center_x + center_deadzone:
+        return "right"
+
+    return "center"
+
+
+def get_person_position():
+    """
+    Used by autopilot follow mode.
+
+    Returns:
+        "left"
+        "center"
+        "right"
+        "stop_edge"
+        None
+    """
+
+    with person_lock:
+        return current_person_position
+
+
 def camera_callback(request):
     """
     Runs automatically every camera frame.
     Updates current_gesture_command and draws the skeleton on the preview.
     """
 
-    global current_gesture_command
+    global current_gesture_command, current_person_position
 
     metadata = request.get_metadata()
     keypoints = parse_pose_output(metadata)
 
     command = None
+    person_position = None
 
     with MappedArray(request, "main") as m:
         frame = m.array
@@ -327,11 +406,16 @@ def camera_callback(request):
                 if command is None and person_command is not None:
                     command = person_command
 
+                if person_position is None:
+                    person_position = get_person_follow_command(person)
+    
         draw_command_text(frame, command)
 
-    with gesture_lock:
-        current_gesture_command = command
+        with gesture_lock:
+            current_gesture_command = command
 
+        with person_lock:
+            current_person_position = person_position
 
 def start_gesture_camera(show_preview=False):
     """
