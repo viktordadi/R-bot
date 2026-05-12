@@ -10,6 +10,7 @@ from ai_camera import (
     start_gesture_camera,
     get_gesture_command,
     get_person_position,
+    get_person_center_offset,
     stop_gesture_camera,
 )
 
@@ -128,6 +129,32 @@ def go_left_very_smooth():
 def stop():
     send_to_motor(0, 0)
 
+def drive_smooth(forward, turn):
+    """
+    Smooth driving helper.
+
+    forward:
+        0.0 = stop
+        1.0 = full forward
+
+    turn:
+        -1.0 = turn left
+         0.0 = straight
+         1.0 = turn right
+    """
+
+    forward = max(-1.0, min(1.0, forward))
+    turn = max(-1.0, min(1.0, turn))
+
+    # Tune these numbers.
+    forward_power = motor_speed * forward
+    turn_power = motor_speed * turn
+
+    m1 = forward_power + turn_power
+    m2 = -forward_power + turn_power
+
+    send_to_motor(m1, m2)
+
 
 def safe_audio(sound_function):
     """
@@ -141,56 +168,87 @@ def safe_audio(sound_function):
 
 def follow_person_step():
     """
-    Follow person using AI camera pose position.
+    Smooth person-follow mode.
 
-    Safety:
-        - stop if person is nearly out of frame
-        - stop if SRF02 says something is too close
-        - stop if no person is detected
+    AI camera:
+        tells us how far left/right the person is.
+
+    SRF02:
+        tells us distance so we do not crash.
     """
 
-    person_position = get_person_position()
-    dashboard.set_status(person_position=person_position)
+    person_offset = get_person_center_offset()
 
     with i2c_lock:
         command, dist_L, dist_R = srf02.get_front_status()
 
     closest_distance = min(dist_L, dist_R)
 
-    # Too close to anything.
-    if closest_distance < 45:
-        print("FOLLOW: too close, stopping")
-        stop()
-        return
+    # -----------------------------
+    # Distance settings
+    # -----------------------------
+    TOO_CLOSE_CM = 30
 
-    # No person detected.
-    if person_position is None:
+    # Robot tries to stay around this distance.
+    TARGET_DISTANCE_CM = 60
+
+    # If farther than this, move forward.
+    MOVE_FORWARD_CM = 75
+
+    # -----------------------------
+    # Steering settings
+    # -----------------------------
+    DEADZONE = 0.15
+
+    # Lower = turns less.
+    TURN_GAIN = 0.45
+
+    # Lower = drives slower.
+    FORWARD_SPEED = 0.35
+
+    # -----------------------------
+    # Safety
+    # -----------------------------
+
+    if person_offset is None:
         print("FOLLOW: no person")
         stop()
         return
 
-    # Person is almost out of camera frame.
-    if person_position == "stop_top":
-        print("FOLLOW: person near top of frame, stopping")
+    if closest_distance < TOO_CLOSE_CM:
+        print("FOLLOW: too close")
         stop()
         return
 
-    if person_position == "left":
-        print("FOLLOW: person left")
-        go_left_very_smooth()
-        return
+    # -----------------------------
+    # Smooth steering
+    # -----------------------------
 
-    if person_position == "right":
-        print("FOLLOW: person right")
-        go_right_very_smooth()
-        return
+    if abs(person_offset) < DEADZONE:
+        turn = 0.0
+    else:
+        turn = person_offset * TURN_GAIN
 
-    if person_position == "center":
-        print("FOLLOW: person center")
-        go_forward()
-        return
+    # -----------------------------
+    # Forward movement
+    # -----------------------------
 
-    stop()
+    if closest_distance > MOVE_FORWARD_CM:
+        forward = FORWARD_SPEED
+    elif closest_distance > TARGET_DISTANCE_CM:
+        forward = FORWARD_SPEED * 0.5
+    else:
+        forward = 0.0
+
+    print(
+        f"FOLLOW: offset={person_offset:.2f} "
+        f"turn={turn:.2f} "
+        f"forward={forward:.2f} "
+        f"dist={closest_distance}"
+    )
+
+    with i2c_lock:
+        drive_smooth(forward, turn)
 
 
 def autopilot_step():
