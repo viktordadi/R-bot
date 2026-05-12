@@ -308,15 +308,16 @@ def draw_command_text(frame, command):
 def get_person_follow_command(person_keypoints):
     """
     Returns:
-        "left"        = person is left, robot should turn left
-        "center"      = person is centered, robot can go forward
-        "right"       = person is right, robot should turn right
-        "stop_edge"   = person is nearly out of frame
-        None          = person not reliable
+        "left"       = person is left, robot should turn left
+        "center"     = person is centered, robot can go forward
+        "right"      = person is right, robot should turn right
+        "stop_top"   = person is nearly out of frame at the top
+        None         = person not reliable
     """
 
-    # Use shoulders and hips to estimate body position.
+    # Use upper-body points to estimate position.
     points_to_use = [
+        person_keypoints[NOSE],
         person_keypoints[LEFT_SHOULDER],
         person_keypoints[RIGHT_SHOULDER],
         person_keypoints[LEFT_HIP],
@@ -334,23 +335,19 @@ def get_person_follow_command(person_keypoints):
         return None
 
     xs = [p[0] for p in good_points]
+    ys = [p[1] for p in good_points]
 
-    person_left_x = min(xs)
-    person_right_x = max(xs)
     person_center_x = sum(xs) / len(xs)
+    person_top_y = min(ys)
 
     image_center_x = IMAGE_WIDTH / 2
 
-    # If person is close to the edge, stop.
-    edge_margin = IMAGE_WIDTH * 0.12
+    # If the person is close to the top of the image, stop.
+    top_margin = IMAGE_HEIGHT * 0.12
 
-    if person_left_x < edge_margin:
-        print("FOLLOW: person nearly out of frame left")
-        return "stop_edge"
-
-    if person_right_x > IMAGE_WIDTH - edge_margin:
-        print("FOLLOW: person nearly out of frame right")
-        return "stop_edge"
+    if person_top_y < top_margin:
+        print("FOLLOW: person nearly out of frame at top")
+        return "stop_top"
 
     # How far from center before turning.
     center_deadzone = IMAGE_WIDTH * 0.15
