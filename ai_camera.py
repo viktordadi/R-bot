@@ -377,10 +377,61 @@ def get_person_position():
         return current_person_position
 
 
+def choose_center_person(keypoints):
+    """
+    Chooses the person whose body center is closest to the center of the image.
+
+    Input:
+        keypoints = all detected people
+
+    Returns:
+        one person's keypoints, or None
+    """
+
+    if keypoints is None or len(keypoints) == 0:
+        return None
+
+    image_center_x = IMAGE_WIDTH / 2
+    best_person = None
+    best_distance = None
+
+    for person in keypoints:
+        points_to_use = [
+            person[LEFT_SHOULDER],
+            person[RIGHT_SHOULDER],
+            person[LEFT_HIP],
+            person[RIGHT_HIP],
+        ]
+
+        good_xs = []
+
+        for point in points_to_use:
+            x, y, confidence = point
+            if confidence >= MIN_KEYPOINT_CONFIDENCE:
+                good_xs.append(x)
+
+        # Need at least 2 good points to trust the body center
+        if len(good_xs) < 2:
+            continue
+
+        person_center_x = sum(good_xs) / len(good_xs)
+        distance_from_center = abs(person_center_x - image_center_x)
+
+        if best_distance is None or distance_from_center < best_distance:
+            best_distance = distance_from_center
+            best_person = person
+
+    return best_person
+
 def camera_callback(request):
     """
     Runs automatically every camera frame.
-    Updates current_gesture_command and draws the skeleton on the preview.
+
+    It:
+        1. Detects all people
+        2. Chooses the person closest to the center of the image
+        3. Uses only that person for gestures and follow mode
+        4. Draws skeletons in the preview
     """
 
     global current_gesture_command, current_person_position
@@ -391,28 +442,40 @@ def camera_callback(request):
     command = None
     person_position = None
 
+    center_person = choose_center_person(keypoints)
+
     with MappedArray(request, "main") as m:
         frame = m.array
 
         if keypoints is not None:
             for person in keypoints:
+                # Draw every detected person
                 draw_skeleton(frame, person)
 
-                person_command = get_pose_command(person)
+        if center_person is not None:
+            # Only the center person controls the robot
+            command = get_pose_command(center_person)
+            person_position = get_person_follow_command(center_person)
 
-                if command is None and person_command is not None:
-                    command = person_command
+            # Optional text so you know which person is being followed
+            cv2.putText(
+                frame,
+                "TARGET",
+                (20, 80),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (255, 255, 255),
+                2,
+            )
 
-                if person_position is None:
-                    person_position = get_person_follow_command(person)
-    
         draw_command_text(frame, command)
 
-        with gesture_lock:
-            current_gesture_command = command
+    with gesture_lock:
+        current_gesture_command = command
 
-        with person_lock:
-            current_person_position = person_position
+    with person_lock:
+        current_person_position = person_position
+
 
 def start_gesture_camera(show_preview=False):
     """
