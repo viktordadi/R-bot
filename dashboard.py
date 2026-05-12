@@ -455,7 +455,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 <button onclick="sendCommand('sound_mr')" class="sound-button">Mr. Worldwide</button>
                 <button onclick="sendCommand('sound_speech')" class="sound-button">Speech</button>
                 <button onclick="sendCommand('sound_faaah')" class="sound-button">Faaah</button>
-                <button onclick="sendCommand('sound_sus')" class="sound-button">Sus</button>
+                <button onclick="sendCommand('sound_honk')" class="sound-button">Honk</button>
+                <button onclick="sendCommand('sound_exit')" class="sound-button">Exit</button>
 
                 <div class="small">
                     Plays MP3 files stored on the Raspberry Pi.
