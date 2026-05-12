@@ -8,9 +8,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = 8081
 
-# Dashboard status values.
-# Other files can update these with:
-#   dashboard.set_status(mode="manual")
 robot_status = {
     "mode": "stopped",
     "camera_mode": "off",
@@ -21,9 +18,6 @@ robot_status = {
     "dist_R": None,
 }
 
-# Follow mode + audio settings.
-# autopilot.py can read follow settings with:
-#   dashboard.get_follow_settings()
 settings = {
     "follow_speed": 0.55,
     "turn_gain": 0.40,
@@ -36,9 +30,6 @@ settings = {
 status_lock = threading.Lock()
 settings_lock = threading.Lock()
 
-# Dashboard button command.
-# main.py reads this with:
-#   dashboard.get_pending_command()
 pending_command = None
 command_lock = threading.Lock()
 
@@ -47,10 +38,6 @@ server_thread = None
 
 
 def get_ip():
-    """
-    Finds the Pi IP address.
-    Used for showing the dashboard link in the terminal.
-    """
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -62,47 +49,27 @@ def get_ip():
 
 
 def set_status(**kwargs):
-    """
-    Updates dashboard values.
-
-    Example:
-        dashboard.set_status(mode="manual", dist_L=50, dist_R=60)
-    """
     with status_lock:
         robot_status.update(kwargs)
 
 
 def get_status_copy():
-    """
-    Returns a safe copy of the current dashboard status.
-    """
     with status_lock:
         return robot_status.copy()
 
 
 def set_setting(name, value):
-    """
-    Updates one dashboard setting.
-    """
     with settings_lock:
         if name in settings:
             settings[name] = value
 
 
 def get_settings():
-    """
-    Returns all dashboard settings.
-    """
     with settings_lock:
         return settings.copy()
 
 
 def get_follow_settings():
-    """
-    Returns current follow mode slider settings.
-
-    autopilot.py should use this.
-    """
     with settings_lock:
         return {
             "follow_speed": settings["follow_speed"],
@@ -114,26 +81,17 @@ def get_follow_settings():
 
 
 def set_system_volume(percent):
-    """
-    Sets Raspberry Pi output volume using PipeWire wpctl.
-    """
     try:
         percent = max(0, min(150, int(percent)))
-
         subprocess.run(
             ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{percent}%"],
             check=False,
         )
-
     except Exception as e:
         print("Volume set error:", e)
 
 
 def set_pending_command(command):
-    """
-    Stores a dashboard button command.
-    main.py should read this and perform the action.
-    """
     global pending_command
 
     with command_lock:
@@ -141,21 +99,6 @@ def set_pending_command(command):
 
 
 def get_pending_command():
-    """
-    main.py calls this every loop.
-
-    Returns:
-        "stop"
-        "manual"
-        "autopilot"
-        "follow"
-        "camera_ai"
-        "camera_stream"
-        "camera_off"
-        "volume_up"
-        "volume_down"
-        None
-    """
     global pending_command
 
     with command_lock:
@@ -165,9 +108,6 @@ def get_pending_command():
 
 
 def get_cpu_temp():
-    """
-    Reads Raspberry Pi CPU temperature.
-    """
     try:
         output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode()
         return output.strip().replace("temp=", "")
@@ -284,6 +224,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         .label {
             color: #aaa;
+            font-weight: bold;
         }
 
         button {
@@ -355,6 +296,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         .failed {
             color: #ff6b6b;
+        }
+
+        .control-section {
+            margin-top: 16px;
+            padding-top: 10px;
+            border-top: 1px solid #444;
         }
 
         @media (max-width: 900px) {
@@ -430,7 +377,38 @@ class DashboardHandler(BaseHTTPRequestHandler):
             </div>
 
             <div class="card">
-                <h2>Controls</h2>
+                <h2>Controller Controls</h2>
+
+                <div class="control-section">
+                    <div class="value"><span class="label">X / Cross:</span> Manual mode</div>
+                    <div class="value"><span class="label">Triangle:</span> Autopilot mode</div>
+                    <div class="value"><span class="label">Circle:</span> Stop and quit</div>
+                    <div class="value"><span class="label">Square:</span> Switch camera mode</div>
+                </div>
+
+                <div class="control-section">
+                    <div class="value"><span class="label">R2:</span> Drive forward</div>
+                    <div class="value"><span class="label">L2:</span> Drive backward</div>
+                    <div class="value"><span class="label">Left joystick:</span> Steering</div>
+                </div>
+
+                <div class="control-section">
+                    <div class="value"><span class="label">L1:</span> Start/stop live mic receiver</div>
+                    <div class="value"><span class="label">R1:</span> Follow person mode</div>
+                    <div class="value"><span class="label">L3:</span> Volume down</div>
+                    <div class="value"><span class="label">R3:</span> Volume up</div>
+                </div>
+
+                <div class="control-section">
+                    <div class="value"><span class="label">D-pad Up:</span> Play Rain Over Me</div>
+                    <div class="value"><span class="label">D-pad Down:</span> Play Fireball</div>
+                    <div class="value"><span class="label">D-pad Right:</span> Play Mr. Worldwide</div>
+                    <div class="value"><span class="label">D-pad Left:</span> Play Speech</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Dashboard Controls</h2>
 
                 <button onclick="sendCommand('stop')" class="danger">STOP</button>
 
@@ -548,7 +526,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 clearTimeout(saveTimer);
             }
 
-            // Small delay so it does not send hundreds of requests while dragging.
             saveTimer = setTimeout(saveSettings, 150);
         }
 
@@ -634,10 +611,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
 
 def start():
-    """
-    Starts dashboard server.
-    Call this once from main.py.
-    """
     global server, server_thread
 
     if server is not None:
@@ -653,9 +626,6 @@ def start():
 
 
 def stop():
-    """
-    Stops dashboard server.
-    """
     global server, server_thread
 
     if server is not None:
