@@ -170,84 +170,155 @@ def safe_audio(sound_function):
 
 def follow_person_step():
     """
-    Smooth person-follow mode.
+    Smooth person-follow mode with edge recovery.
 
     AI camera:
-        tells us how far left/right the person is.
+        get_person_center_offset()
+        -1.0 = person far left
+         0.0 = person centered
+        +1.0 = person far right
 
     SRF02:
-        tells us distance so we do not crash.
+        stops the robot if something is too close.
     """
 
     person_offset = get_person_center_offset()
 
-    with i2c_lock:
-        command, dist_L, dist_R = srf02.get_front_status()
+    try:
+        with i2c_lock:
+            command, dist_L, dist_R = srf02.get_front_status()
+    except OSError as e:
+        print("FOLLOW: SRF02 I2C error:", e)
+        dashboard.set_status(
+            mode="follow",
+            person_position="sensor error",
+            follow_action="stopped",
+            dist_L="error",
+            dist_R="error",
+        )
+        stop()
+        return
 
     closest_distance = min(dist_L, dist_R)
 
     # -----------------------------
-    # Distance settings
+    # Dashboard slider settings
     # -----------------------------
     settings = dashboard.get_follow_settings()
+
     TOO_CLOSE_CM = settings["too_close_cm"]
-
-    # Robot tries to stay around this distance.
     TARGET_DISTANCE_CM = settings["target_distance_cm"]
-
-    # If farther than this, move forward.
     MOVE_FORWARD_CM = settings["move_forward_cm"]
+
+    TURN_GAIN = settings["turn_gain"]
+    FORWARD_SPEED = settings["follow_speed"]
 
     # -----------------------------
     # Steering settings
     # -----------------------------
     DEADZONE = 0.15
 
-    # Lower = turns less.
-    TURN_GAIN = settings["turn_gain"]
+    # If offset is past this, the person is close to leaving the frame.
+    EDGE_LIMIT = 0.65
 
-    # Lower = drives slower.
-    FORWARD_SPEED = settings["follow_speed"]
+    # Stronger turning when the person is near the edge.
+    EDGE_TURN_GAIN = 0.85
 
     # -----------------------------
     # Safety
     # -----------------------------
-
     if person_offset is None:
         print("FOLLOW: no person")
+        dashboard.set_status(
+            mode="follow",
+            person_position="no person",
+            follow_action="stopped",
+            dist_L=dist_L,
+            dist_R=dist_R,
+        )
         stop()
         return
 
     if closest_distance < TOO_CLOSE_CM:
         print("FOLLOW: too close")
+        dashboard.set_status(
+            mode="follow",
+            person_position=f"offset={person_offset:.2f}",
+            follow_action="too close - stopped",
+            dist_L=dist_L,
+            dist_R=dist_R,
+        )
         stop()
         return
 
     # -----------------------------
-    # Smooth steering
+    # Steering / edge recovery
     # -----------------------------
+    if person_offset < -EDGE_LIMIT:
+        # Person is almost out of frame on the left.
+        # Rotate left harder and do not drive forward.
+        turn = -EDGE_TURN_GAIN
+        person_position = "far left"
+        follow_action = "recover left"
 
-    if abs(person_offset) < DEADZONE:
+    elif person_offset > EDGE_LIMIT:
+        # Person is almost out of frame on the right.
+        # Rotate right harder and do not drive forward.
+        turn = EDGE_TURN_GAIN
+        person_position = "far right"
+        follow_action = "recover right"
+
+    elif abs(person_offset) < DEADZONE:
         turn = 0.0
+        person_position = "center"
+        follow_action = "centered"
+
+    elif person_offset < 0:
+        turn = person_offset * TURN_GAIN
+        person_position = "left"
+        follow_action = "turn left"
+
     else:
         turn = person_offset * TURN_GAIN
+        person_position = "right"
+        follow_action = "turn right"
 
     # -----------------------------
     # Forward movement
     # -----------------------------
+    if abs(person_offset) > EDGE_LIMIT:
+        # Person is near edge, so only rotate to recover.
+        forward = 0.0
 
-    if closest_distance > MOVE_FORWARD_CM:
+    elif closest_distance > MOVE_FORWARD_CM:
         forward = FORWARD_SPEED
+        follow_action = follow_action + " + forward"
+
     elif closest_distance > TARGET_DISTANCE_CM:
         forward = FORWARD_SPEED * 0.5
+        follow_action = follow_action + " + slow forward"
+
     else:
         forward = 0.0
+        follow_action = follow_action + " + hold distance"
+
+    # -----------------------------
+    # Dashboard + motor output
+    # -----------------------------
+    dashboard.set_status(
+        mode="follow",
+        person_position=f"{person_position} offset={person_offset:.2f}",
+        follow_action=follow_action,
+        dist_L=dist_L,
+        dist_R=dist_R,
+    )
 
     print(
         f"FOLLOW: offset={person_offset:.2f} "
         f"turn={turn:.2f} "
         f"forward={forward:.2f} "
-        f"dist={closest_distance}"
+        f"dist={closest_distance} "
+        f"action={follow_action}"
     )
 
     with i2c_lock:
