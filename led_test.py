@@ -7,7 +7,7 @@ NUM_LEDS = 60  # change this to your real LED count
 pixels = neopixel.NeoPixel(
     board.D18,
     NUM_LEDS,
-    brightness=0.2,
+    brightness=0.05,
     auto_write=False,
     pixel_order=neopixel.GRB
 )
