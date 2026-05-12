@@ -300,6 +300,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
             background: #2454a6;
         }
 
+        .search-button {
+            background: #7b3fb8;
+        }
+
         .camera-button {
             background: #236b3b;
         }
@@ -504,6 +508,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 <button onclick="sendCommand('manual')" class="mode-button">Manual</button>
                 <button onclick="sendCommand('autopilot')" class="mode-button">Autopilot</button>
                 <button onclick="sendCommand('follow')" class="mode-button">Follow</button>
+                <button onclick="sendCommand('search')" class="search-button">Search</button>
 
                 <br><br>
 
