@@ -33,6 +33,9 @@ settings_lock = threading.Lock()
 pending_command = None
 command_lock = threading.Lock()
 
+pending_tts_text = None
+tts_lock = threading.Lock()
+
 server = None
 server_thread = None
 
@@ -107,6 +110,22 @@ def get_pending_command():
         return command
 
 
+def set_pending_tts(text):
+    global pending_tts_text
+
+    with tts_lock:
+        pending_tts_text = text
+
+
+def get_pending_tts():
+    global pending_tts_text
+
+    with tts_lock:
+        text = pending_tts_text
+        pending_tts_text = None
+        return text
+
+
 def get_cpu_temp():
     try:
         output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode()
@@ -142,6 +161,28 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"OK")
             return
+
+        if self.path == "/tts":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length).decode()
+
+            try:
+                data = json.loads(body)
+                text = data.get("text", "")
+                set_pending_tts(text)
+
+                self.send_response(200)
+                self.send_header("Content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"OK")
+                return
+
+            except Exception as e:
+                self.send_response(400)
+                self.send_header("Content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write(str(e).encode())
+                return
 
         if self.path == "/settings":
             length = int(self.headers.get("Content-Length", 0))
@@ -275,6 +316,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
             width: 100%;
         }
 
+        input[type=text] {
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 18px;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            margin-top: 8px;
+        }
+
         .slider-value {
             font-weight: bold;
             color: #7ee787;
@@ -374,6 +425,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 <div class="value"><span class="label">Left distance:</span> <span id="dist_L">?</span></div>
                 <div class="value"><span class="label">Right distance:</span> <span id="dist_R">?</span></div>
                 <div class="value"><span class="label">CPU temp:</span> <span id="cpu_temp">?</span></div>
+            </div>
+
+            <div class="card">
+                <h2>Text To Speech</h2>
+
+                <input
+                    id="tts_text"
+                    type="text"
+                    placeholder="Type something for the robot to say"
+                >
+
+                <br><br>
+
+                <button onclick="sendTTS()" class="audio-button">Speak</button>
+
+                <div class="small" id="tts_status"></div>
             </div>
 
             <div class="card">
@@ -571,9 +638,36 @@ class DashboardHandler(BaseHTTPRequestHandler):
             }
         }
 
+        async function sendTTS() {
+            const text = document.getElementById("tts_text").value;
+
+            try {
+                document.getElementById("tts_status").textContent = "Sending speech...";
+
+                await fetch("/tts", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+
+                document.getElementById("tts_status").textContent = "Speech sent";
+            } catch (error) {
+                document.getElementById("tts_status").textContent = "Speech failed";
+                console.log(error);
+            }
+        }
+
         const sliders = document.querySelectorAll("input[type=range]");
         sliders.forEach(slider => {
             slider.addEventListener("input", scheduleSaveSettings);
+        });
+
+        document.getElementById("tts_text").addEventListener("keydown", function(event) {
+            if (event.key === "Enter") {
+                sendTTS();
+            }
         });
 
         setInterval(updateStatus, 500);
