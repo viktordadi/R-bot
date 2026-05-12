@@ -51,6 +51,80 @@ live_mic_running = False
 
 live_mic_running = False
 
+def handle_dashboard_command(command, mode):
+    global camera_mode
+
+    if command is None:
+        return mode
+
+    print("Dashboard command:", command)
+
+    if command == "stop":
+        autopilot.stop_servo_loop()
+        autopilot.stop()
+        manual_control.stop()
+        dashboard.set_status(mode="stopped")
+        return MODE_STOPPED
+
+    if command == "manual":
+        autopilot.stop_servo_loop()
+        autopilot.stop()
+        manual_control.stop()
+        dashboard.set_status(mode="manual")
+        return MODE_MANUAL
+
+    if command == "autopilot":
+        autopilot.start_servo_loop()
+        autopilot.stop()
+        manual_control.stop()
+        dashboard.set_status(mode="autopilot")
+        return MODE_AUTOPILOT
+
+    if command == "follow":
+        if camera_mode != CAMERA_AI:
+            stop_all_camera_modes()
+            ai_camera.start_gesture_camera(show_preview=False)
+            camera_mode = CAMERA_AI
+            dashboard.set_status(camera_mode="ai")
+
+        autopilot.stop_servo_loop()
+        autopilot.stop()
+        manual_control.stop()
+        dashboard.set_status(mode="follow")
+        return MODE_FOLLOW
+
+    if command == "camera_ai":
+        stop_all_camera_modes()
+        ai_camera.start_gesture_camera(show_preview=False)
+        camera_mode = CAMERA_AI
+        dashboard.set_status(camera_mode="ai")
+        return mode
+
+    if command == "camera_stream":
+        stop_all_camera_modes()
+        camera_stream.start(open_browser=False)
+        camera_mode = CAMERA_STREAM
+        dashboard.set_status(camera_mode="stream")
+        return mode
+
+    if command == "camera_off":
+        stop_all_camera_modes()
+        camera_mode = CAMERA_OFF
+        dashboard.set_status(camera_mode="off")
+        return mode
+
+    if command == "volume_up":
+        audio.volume_up()
+        return mode
+
+    if command == "volume_down":
+        audio.volume_down()
+        return mode
+
+    return mode
+
+
+
 def toggle_live_mic():
     global live_mic_running
 
@@ -144,6 +218,8 @@ def main():
             # Lesum bara mode-takkana hér.
             # Sjálf handstýringin er inni í manual_control.manual_step().
             pressed, dpad = get_pressed_buttons()
+            dashboard_command = dashboard.get_pending_command()
+            mode = handle_dashboard_command(dashboard_command, mode)
             manual_pressed = CROSS_BUTTON in pressed      # athugar set
             autopilot_pressed = TRIANGLE_BUTTON in pressed
             stop_pressed = CIRCLE_BUTTON in pressed
