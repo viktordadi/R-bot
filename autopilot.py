@@ -117,6 +117,13 @@ def go_left():
 def go_left_smooth():
     send_to_motor(motor_speed * 0.2, -motor_speed * 0.7)
 
+def go_right_very_smooth():
+    send_to_motor(motor_speed * 0.45, -motor_speed * 0.10)
+
+
+def go_left_very_smooth():
+    send_to_motor(motor_speed * 0.10, -motor_speed * 0.45)
+
 
 def stop():
     send_to_motor(0, 0)
