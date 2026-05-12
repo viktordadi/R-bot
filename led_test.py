@@ -9,7 +9,7 @@ pixels = neopixel.NeoPixel(
     NUM_LEDS,
     brightness=0.05,
     auto_write=False,
-    pixel_order=neopixel.GRBW
+    pixel_order=neopixel.GRB
 )
 
 pixels.fill((255, 0, 0))
