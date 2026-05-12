@@ -36,6 +36,9 @@ command_lock = threading.Lock()
 pending_tts_text = None
 tts_lock = threading.Lock()
 
+pending_led_command = None
+led_command_lock = threading.Lock()
+
 server = None
 server_thread = None
 
@@ -126,6 +129,22 @@ def get_pending_tts():
         return text
 
 
+def set_pending_led_command(command):
+    global pending_led_command
+
+    with led_command_lock:
+        pending_led_command = command
+
+
+def get_pending_led_command():
+    global pending_led_command
+
+    with led_command_lock:
+        command = pending_led_command
+        pending_led_command = None
+        return command
+
+
 def get_cpu_temp():
     try:
         output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode()
@@ -170,6 +189,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 data = json.loads(body)
                 text = data.get("text", "")
                 set_pending_tts(text)
+
+                self.send_response(200)
+                self.send_header("Content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"OK")
+                return
+
+            except Exception as e:
+                self.send_response(400)
+                self.send_header("Content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write(str(e).encode())
+                return
+
+        if self.path == "/led":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length).decode()
+
+            try:
+                data = json.loads(body)
+                set_pending_led_command(data)
 
                 self.send_response(200)
                 self.send_header("Content-type", "text/plain")
@@ -316,6 +356,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
             background: #673ab7;
         }
 
+        .led-button {
+            background: #008080;
+        }
+
         .slider-row {
             margin: 16px 0;
         }
@@ -332,6 +376,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             border-radius: 10px;
             border: none;
             margin-top: 8px;
+        }
+
+        input[type=color] {
+            width: 100%;
+            height: 50px;
+            border: none;
+            border-radius: 10px;
+            background: none;
+            cursor: pointer;
         }
 
         .slider-value {
@@ -418,6 +471,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 </div>
 
                 <div class="small" id="settings_status"></div>
+            </div>
+
+            <div class="card">
+                <h2>LED Underglow</h2>
+
+                <label>Color:</label>
+                <input id="led_color" type="color" value="#8000ff">
+
+                <br><br>
+
+                <label>LED brightness: <span class="slider-value" id="led_brightness_value">0.15</span></label>
+                <input id="led_brightness" type="range" min="0.01" max="0.50" step="0.01" value="0.15">
+
+                <br><br>
+
+                <button onclick="setLedColor()" class="led-button">Set Color</button>
+                <button onclick="ledRainbow()" class="sound-button">Rainbow</button>
+                <button onclick="ledBlink()" class="sound-button">Blink</button>
+                <button onclick="ledOff()" class="danger">LED Off</button>
+
+                <div class="small" id="led_status"></div>
             </div>
         </div>
 
@@ -684,9 +758,85 @@ class DashboardHandler(BaseHTTPRequestHandler):
             }
         }
 
+        function hexToRgb(hex) {
+            hex = hex.replace("#", "");
+
+            return {
+                r: parseInt(hex.substring(0, 2), 16),
+                g: parseInt(hex.substring(2, 4), 16),
+                b: parseInt(hex.substring(4, 6), 16)
+            };
+        }
+
+        async function sendLedCommand(data) {
+            try {
+                document.getElementById("led_status").textContent = "Sending LED command...";
+
+                await fetch("/led", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                document.getElementById("led_status").textContent = "LED command sent";
+            } catch (error) {
+                document.getElementById("led_status").textContent = "LED command failed";
+                console.log(error);
+            }
+        }
+
+        function setLedColor() {
+            const color = hexToRgb(document.getElementById("led_color").value);
+            const brightness = parseFloat(document.getElementById("led_brightness").value);
+
+            sendLedCommand({
+                mode: "color",
+                r: color.r,
+                g: color.g,
+                b: color.b,
+                brightness: brightness
+            });
+        }
+
+        function ledRainbow() {
+            const brightness = parseFloat(document.getElementById("led_brightness").value);
+
+            sendLedCommand({
+                mode: "rainbow",
+                brightness: brightness
+            });
+        }
+
+        function ledBlink() {
+            const color = hexToRgb(document.getElementById("led_color").value);
+            const brightness = parseFloat(document.getElementById("led_brightness").value);
+
+            sendLedCommand({
+                mode: "blink",
+                r: color.r,
+                g: color.g,
+                b: color.b,
+                brightness: brightness
+            });
+        }
+
+        function ledOff() {
+            sendLedCommand({
+                mode: "off"
+            });
+        }
+
         const sliders = document.querySelectorAll("input[type=range]");
         sliders.forEach(slider => {
-            slider.addEventListener("input", scheduleSaveSettings);
+            if (slider.id === "led_brightness") {
+                slider.addEventListener("input", function() {
+                    document.getElementById("led_brightness_value").textContent = this.value;
+                });
+            } else {
+                slider.addEventListener("input", scheduleSaveSettings);
+            }
         });
 
         document.getElementById("tts_text").addEventListener("keydown", function(event) {
