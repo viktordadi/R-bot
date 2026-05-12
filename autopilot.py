@@ -162,8 +162,8 @@ def follow_person_step():
         return
 
     # Person is almost out of camera frame.
-    if person_position == "stop_edge":
-        print("FOLLOW: person near edge, stopping")
+    if person_position == "stop_top":
+        print("FOLLOW: person near top of frame, stopping")
         stop()
         return
 
