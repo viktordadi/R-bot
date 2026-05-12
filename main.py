@@ -22,6 +22,7 @@ import camera_stream
 
 
 # PS5 button mappings in pygame
+R1_BUTTON = 5          # R1 = follow person mode
 MENU_BUTTON = 8
 L3_BUTTON = 11         # L3 = volume down
 R3_BUTTON = 12         # R3 = volume up
@@ -37,6 +38,7 @@ LOOP_DELAY = 0.05
 MODE_STOPPED = "stopped"
 MODE_MANUAL = "manual"
 MODE_AUTOPILOT = "autopilot"
+MODE_FOLLOW = "follow"
 
 CAMERA_OFF = "off"
 CAMERA_AI = "ai"
@@ -140,6 +142,7 @@ def main():
             autopilot_pressed = TRIANGLE_BUTTON in pressed
             stop_pressed = CIRCLE_BUTTON in pressed
             camera_pressed = SQUARE_BUTTON in pressed
+            follow_pressed = R1_BUTTON in pressed
             live_mic_pressed = L1_BUTTON in pressed
             volume_down_pressed = L3_BUTTON in pressed
             volume_up_pressed = R3_BUTTON in pressed
@@ -202,6 +205,14 @@ def main():
               manual_control.stop()
               print("Mode: autopilot")
 
+
+            elif follow_pressed and mode != MODE_FOLLOW:
+              mode = MODE_FOLLOW
+              autopilot.start_servo_loop()
+              autopilot.stop()
+              manual_control.stop()
+              print("Mode: follow person")
+
             if mode == MODE_MANUAL:
                 keep_running = manual_control.manual_step()
                 if keep_running is False:
@@ -211,6 +222,9 @@ def main():
 
             elif mode == MODE_AUTOPILOT:
                 autopilot.autopilot_step()
+
+            elif mode == MODE_FOLLOW:
+                autopilot.follow_person_step()
 
             else:
                 autopilot.stop()
