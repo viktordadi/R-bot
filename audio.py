@@ -3,10 +3,33 @@ import pygame
 import subprocess
 import signal
 import os
+import shlex
 
 live_mic_process = None
 
-# ffmpeg -f dshow -i audio="Microphone Array (Realtek(R) Audio)" -filter:a "volume=8" -ar 48000 -ac 2 -f s16le udp://10.98.211.36:5005
+# ffmpeg -f dshow -i audio="Microphone Array (Realtek(R) Audio)" -filter:a "volume=8" -ar 48000 -ac 2 -f s16le udp://10.100.38.59:5005
+
+def say(text):
+    if text is None:
+        return
+
+    text = str(text).strip()
+
+    if text == "":
+        return
+
+    try:
+        pygame.mixer.music.stop()
+    except Exception:
+        pass
+
+    try:
+        subprocess.Popen(
+            f'espeak {shlex.quote(text)} --stdout | pw-play -',
+            shell=True,
+        )
+    except Exception as e:
+        print("Text-to-speech error:", e)
 
 def volume_up():
     subprocess.run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%+"], check=False)
