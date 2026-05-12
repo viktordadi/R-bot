@@ -121,6 +121,34 @@ def handle_dashboard_command(command, mode):
         audio.volume_down()
         return mode
 
+    if command == "sound_fireball":
+        audio.fireball()
+        return mode
+
+    if command == "sound_rain":
+        audio.rain_over_me()
+        return mode
+
+    if command == "sound_mr":
+        audio.mr_worldwide()
+        return mode
+
+    if command == "sound_speech":
+        audio.speech()
+        return mode
+
+    if command == "sound_faaah":
+        audio.faaah()
+        return mode
+
+    if command == "sound_honk":
+        audio.honk()
+        return mode
+
+    if command == "sound_exit":
+        audio.exit()
+        return mode
+
     return mode
 
 
