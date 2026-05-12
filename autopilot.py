@@ -1,6 +1,6 @@
 import threading
 import time
-
+import dashboard
 import servo
 import srf02
 import smbus
@@ -150,6 +150,7 @@ def follow_person_step():
     """
 
     person_position = get_person_position()
+    dashboard.set_status(person_position=person_position)
 
     with i2c_lock:
         command, dist_L, dist_R = srf02.get_front_status()
@@ -215,6 +216,7 @@ def autopilot_step():
     # --------------------------------------------------------
 
     gesture_command = get_gesture_command()
+    dashboard.set_status(gesture=gesture_command)
 
     if gesture_command == "stop":
         print("Gesture STOP")
@@ -240,7 +242,8 @@ def autopilot_step():
 
     with i2c_lock:
         command, dist_L, dist_R = srf02.get_front_status()
-
+        
+    dashboard.set_status(dist_L=dist_L, dist_R=dist_R)
     closest_distance = min(dist_L, dist_R)
 
     # Emergency stop if something is very close.
