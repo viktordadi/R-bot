@@ -234,6 +234,10 @@ def main():
             mr_pressed = dpad == (1, 0)
             speech_pressed = dpad == (-1, 0)
 
+            tts_text = dashboard.get_pending_tts()
+            if tts_text:
+              audio.say(tts_text)
+
             if honk_pressed:
               audio.honk()
 
