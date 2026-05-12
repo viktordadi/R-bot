@@ -18,6 +18,7 @@ import autopilot
 import ai_camera
 import camera_stream
 import dashboard
+import led_control
 
 
 
@@ -249,6 +250,36 @@ def get_pressed_buttons():
             dpad = event.value
     return buttons, dpad
 
+def handle_led_command(command):
+    mode = command.get("mode")
+
+    if mode == "off":
+        led_control.off()
+        return
+
+    brightness = command.get("brightness", 0.15)
+    led_control.set_brightness(brightness)
+
+    if mode == "color":
+        led_control.set_color(
+            command.get("r", 128),
+            command.get("g", 0),
+            command.get("b", 255),
+        )
+        return
+
+    if mode == "rainbow":
+        led_control.rainbow()
+        return
+
+    if mode == "blink":
+        led_control.blink(
+            command.get("r", 255),
+            command.get("g", 0),
+            command.get("b", 0),
+        )
+        return
+
 def main():
     global camera_mode, live_mic_running
     mode = MODE_STOPPED
@@ -279,6 +310,10 @@ def main():
             speech_pressed = dpad == (-1, 0)
 
             tts_text = dashboard.get_pending_tts()
+
+            led_command = dashboard.get_pending_led_command()
+            if led_command:
+                handle_led_command(led_command)
             if tts_text:
               audio.say(tts_text)
 
