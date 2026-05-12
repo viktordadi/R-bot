@@ -190,7 +190,7 @@ def follow_person_step():
     TOO_CLOSE_CM = 30
 
     # Robot tries to stay around this distance.
-    TARGET_DISTANCE_CM = 60
+    TARGET_DISTANCE_CM = 45
 
     # If farther than this, move forward.
     MOVE_FORWARD_CM = 75
@@ -204,7 +204,7 @@ def follow_person_step():
     TURN_GAIN = 0.45
 
     # Lower = drives slower.
-    FORWARD_SPEED = 0.35
+    FORWARD_SPEED = 0.70
 
     # -----------------------------
     # Safety
