@@ -220,13 +220,14 @@ def main():
 
                 if camera_mode != CAMERA_AI:
                   stop_all_camera_modes()
-                  ai_camera.start_gesture_camera(show_preview=False)
+                  ai_camera.start_gesture_camera(show_preview=True)
                   camera_mode = CAMERA_AI
 
                 autopilot.stop_servo_loop()
                 autopilot.stop()
                 manual_control.stop()
                 dashboard.set_status(mode="follow")
+                dashboard.set_status(camera_mode=CAMERA_AI)
                 print("Mode: follow person")
 
             if mode == MODE_MANUAL:
