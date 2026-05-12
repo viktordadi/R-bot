@@ -226,6 +226,7 @@ def main():
                 autopilot.stop_servo_loop()
                 autopilot.stop()
                 manual_control.stop()
+                dashboard.set_status(mode="follow")
                 print("Mode: follow person")
 
             if mode == MODE_MANUAL:
