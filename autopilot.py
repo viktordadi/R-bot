@@ -176,12 +176,12 @@ def follow_person_step():
 
     if person_position == "left":
         print("FOLLOW: person left")
-        go_left_smooth()
+        go_left_very_smooth()
         return
 
     if person_position == "right":
         print("FOLLOW: person right")
-        go_right_smooth()
+        go_right_very_smooth()
         return
 
     if person_position == "center":
