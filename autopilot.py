@@ -19,7 +19,7 @@ i2c_lock = threading.Lock()
 bus = smbus.SMBus(1)
 
 MOTOR_ADDRESS = 0x50
-motor_speed = 120
+motor_speed = 220
 
 
 servo_thread = None
