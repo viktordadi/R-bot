@@ -258,18 +258,18 @@ def handle_led_command(command):
         return
 
     brightness = command.get("brightness", 0.15)
-    led_control.set_brightness(brightness)
 
     if mode == "color":
-        led_control.set_color(
+        led_control.set_color_with_brightness(
             command.get("r", 128),
             command.get("g", 0),
             command.get("b", 255),
+            brightness,
         )
         return
 
     if mode == "rainbow":
-        led_control.rainbow()
+        led_control.rainbow(brightness)
         return
 
     if mode == "blink":
@@ -277,6 +277,7 @@ def handle_led_command(command):
             command.get("r", 255),
             command.get("g", 0),
             command.get("b", 0),
+            brightness,
         )
         return
 
