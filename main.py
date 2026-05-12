@@ -40,6 +40,7 @@ MODE_STOPPED = "stopped"
 MODE_MANUAL = "manual"
 MODE_AUTOPILOT = "autopilot"
 MODE_FOLLOW = "follow"
+MODE_SEARCH = "search"
 
 CAMERA_OFF = "off"
 CAMERA_AI = "ai"
@@ -92,6 +93,21 @@ def handle_dashboard_command(command, mode):
         manual_control.stop()
         dashboard.set_status(mode="follow")
         return MODE_FOLLOW
+
+    if command == "search":
+        if camera_mode != CAMERA_AI:
+            stop_all_camera_modes()
+            ai_camera.start_gesture_camera(show_preview=False)
+            camera_mode = CAMERA_AI
+            dashboard.set_status(camera_mode="ai")
+
+        autopilot.stop_servo_loop()
+        autopilot.stop()
+        manual_control.stop()
+
+        dashboard.set_status(mode="search", follow_action="searching")
+        print("Mode: search person")
+        return MODE_SEARCH
 
     if command == "camera_ai":
         stop_all_camera_modes()
@@ -350,6 +366,14 @@ def main():
 
             elif mode == MODE_FOLLOW:
                 autopilot.follow_person_step()
+
+            elif mode == MODE_SEARCH:
+                found_person = autopilot.search_person_step()
+
+                if found_person:
+                    mode = MODE_FOLLOW
+                    dashboard.set_status(mode="follow", follow_action="person found")
+                    print("Search found person. Switching to follow mode.")
 
             else:
                 autopilot.stop()
