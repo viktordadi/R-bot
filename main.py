@@ -132,6 +132,7 @@ def get_pressed_buttons():
     return buttons, dpad
 
 def main():
+    global camera_mode, live_mic_running
     mode = MODE_STOPPED
     print_controls()
     dashboard.start()
