@@ -101,6 +101,160 @@ picam2 = None
 current_person_position = None
 person_lock = threading.Lock()
 
+current_person_offset = None
+person_lock = threading.Lock()
+
+
+def choose_center_person(keypoints):
+    """
+    Choose the detected person closest to the center of the image.
+    This prevents the robot from switching to people on the side.
+    """
+
+    if keypoints is None or len(keypoints) == 0:
+        return None
+
+    image_center_x = IMAGE_WIDTH / 2
+    best_person = None
+    best_distance = None
+
+    for person in keypoints:
+        points_to_use = [
+            person[LEFT_SHOULDER],
+            person[RIGHT_SHOULDER],
+            person[LEFT_HIP],
+            person[RIGHT_HIP],
+        ]
+
+        good_xs = []
+
+        for point in points_to_use:
+            x, y, confidence = point
+            if confidence >= MIN_KEYPOINT_CONFIDENCE:
+                good_xs.append(x)
+
+        if len(good_xs) < 2:
+            continue
+
+        person_center_x = sum(good_xs) / len(good_xs)
+        distance = abs(person_center_x - image_center_x)
+
+        if best_distance is None or distance < best_distance:
+            best_distance = distance
+            best_person = person
+
+    return best_person
+
+
+def get_person_offset(person_keypoints):
+    """
+    Returns how far the person is from the center of the image.
+
+    Returns:
+        -1.0  = far left
+         0.0  = center
+        +1.0  = far right
+        None  = person not reliable
+    """
+
+    points_to_use = [
+        person_keypoints[LEFT_SHOULDER],
+        person_keypoints[RIGHT_SHOULDER],
+        person_keypoints[LEFT_HIP],
+        person_keypoints[RIGHT_HIP],
+    ]
+
+    good_points = []
+
+    for point in points_to_use:
+        x, y, confidence = point
+        if confidence >= MIN_KEYPOINT_CONFIDENCE:
+            good_points.append(point)
+
+    if len(good_points) < 2:
+        return None
+
+    xs = [p[0] for p in good_points]
+
+    person_center_x = sum(xs) / len(xs)
+    image_center_x = IMAGE_WIDTH / 2
+
+    # Offset in pixels.
+    offset_pixels = person_center_x - image_center_x
+
+    # Convert to -1.0 to +1.0.
+    offset_normalized = offset_pixels / image_center_x
+
+    # Clamp just in case.
+    offset_normalized = max(-1.0, min(1.0, offset_normalized))
+
+    return offset_normalized
+
+
+def get_person_follow_command(person_keypoints):
+    """
+    Keeps your old left/center/right system available.
+
+    Returns:
+        "left"
+        "center"
+        "right"
+        None
+    """
+
+    offset = get_person_offset(person_keypoints)
+
+    if offset is None:
+        return None
+
+    deadzone = 0.18
+
+    if offset < -deadzone:
+        return "left"
+
+    if offset > deadzone:
+        return "right"
+
+    return "center"
+
+
+def get_person_position():
+    """
+    Old follow-mode function.
+
+    Returns:
+        "left"
+        "center"
+        "right"
+        None
+    """
+
+    with person_lock:
+        if current_person_offset is None:
+            return None
+
+        deadzone = 0.18
+
+        if current_person_offset < -deadzone:
+            return "left"
+
+        if current_person_offset > deadzone:
+            return "right"
+
+        return "center"
+
+
+def get_person_center_offset():
+    """
+    New smooth follow-mode function.
+
+    Returns:
+        -1.0 to +1.0
+        None if no person
+    """
+
+    with person_lock:
+        return current_person_offset
 
 def point_ok(point, min_confidence=MIN_KEYPOINT_CONFIDENCE):
     x, y, confidence = point
@@ -429,35 +583,35 @@ def camera_callback(request):
 
     It:
         1. Detects all people
-        2. Chooses the person closest to the center of the image
-        3. Uses only that person for gestures and follow mode
-        4. Draws skeletons in the preview
+        2. Chooses the person closest to the center
+        3. Updates gesture command
+        4. Updates smooth follow offset
+        5. Draws skeleton preview
     """
 
-    global current_gesture_command, current_person_position
+    global current_gesture_command, current_person_offset
 
     metadata = request.get_metadata()
     keypoints = parse_pose_output(metadata)
 
     command = None
-    person_position = None
+    person_offset = None
 
     center_person = choose_center_person(keypoints)
 
     with MappedArray(request, "main") as m:
         frame = m.array
 
+        # Draw all detected people.
         if keypoints is not None:
             for person in keypoints:
-                # Draw every detected person
                 draw_skeleton(frame, person)
 
+        # Only the most centered person controls the robot.
         if center_person is not None:
-            # Only the center person controls the robot
             command = get_pose_command(center_person)
-            person_position = get_person_follow_command(center_person)
+            person_offset = get_person_offset(center_person)
 
-            # Optional text so you know which person is being followed
             cv2.putText(
                 frame,
                 "TARGET",
@@ -468,13 +622,24 @@ def camera_callback(request):
                 2,
             )
 
+            if person_offset is not None:
+                cv2.putText(
+                    frame,
+                    f"OFFSET: {person_offset:.2f}",
+                    (20, 120),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (255, 255, 255),
+                    2,
+                )
+
         draw_command_text(frame, command)
 
     with gesture_lock:
         current_gesture_command = command
 
     with person_lock:
-        current_person_position = person_position
+        current_person_offset = person_offset
 
 
 def start_gesture_camera(show_preview=False):
