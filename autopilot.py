@@ -283,11 +283,11 @@ def search_person_step():
     now = time.time()
 
     # Change direction every 2 seconds.
-    if now - last_search_switch_time > 2.0:
+    if now - last_search_switch_time > 3.0:
         search_direction *= -1
         last_search_switch_time = now
 
-    search_speed = motor_speed * 0.20
+    search_speed = motor_speed * 0.35
 
     try:
         with i2c_lock:
