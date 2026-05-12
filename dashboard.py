@@ -100,7 +100,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             <div class="container">
                 <div class="card">
                     <h2>Camera</h2>
-                    <img src="http://10.98.211.36:8080/stream.mjpg">
+                    <img src="http://10.100.38.59:8080/stream.mjpg">
                 </div>
 
                 <div class="card">
