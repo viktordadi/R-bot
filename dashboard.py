@@ -308,6 +308,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
             background: #6b4a23;
         }
 
+        .sound-button {
+            background: #673ab7;
+        }
+
         .slider-row {
             margin: 16px 0;
         }
@@ -441,6 +445,21 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 <button onclick="sendTTS()" class="audio-button">Speak</button>
 
                 <div class="small" id="tts_status"></div>
+            </div>
+
+            <div class="card">
+                <h2>Soundboard</h2>
+
+                <button onclick="sendCommand('sound_fireball')" class="sound-button">Fireball</button>
+                <button onclick="sendCommand('sound_rain')" class="sound-button">Rain Over Me</button>
+                <button onclick="sendCommand('sound_mr')" class="sound-button">Mr. Worldwide</button>
+                <button onclick="sendCommand('sound_speech')" class="sound-button">Speech</button>
+                <button onclick="sendCommand('sound_faaah')" class="sound-button">Faaah</button>
+                <button onclick="sendCommand('sound_sus')" class="sound-button">Sus</button>
+
+                <div class="small">
+                    Plays MP3 files stored on the Raspberry Pi.
+                </div>
             </div>
 
             <div class="card">
