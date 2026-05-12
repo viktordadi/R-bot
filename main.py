@@ -17,6 +17,7 @@ import manual_control
 import autopilot
 import ai_camera
 import camera_stream
+import dashboard
 
 
 
@@ -88,18 +89,21 @@ def switch_camera_mode():
     if camera_mode == CAMERA_OFF:
         print("Switching camera mode: AI camera")
         stop_all_camera_modes()
+        dashboard.set_status(camera_mode=CAMERA_AI)
         ai_camera.start_gesture_camera(show_preview=True)
         camera_mode = CAMERA_AI
 
     elif camera_mode == CAMERA_AI:
         print("Switching camera mode: normal browser stream")
         stop_all_camera_modes()
+        dashboard.set_status(camera_mode=CAMERA_STREAM)
         camera_stream.start(open_browser=True)
         camera_mode = CAMERA_STREAM
 
     else:
         print("Switching camera mode: off")
         stop_all_camera_modes()
+        dashboard.set_status(camera_mode=CAMERA_OFF)
         camera_mode = CAMERA_OFF
 
 
@@ -130,6 +134,7 @@ def get_pressed_buttons():
 def main():
     mode = MODE_STOPPED
     print_controls()
+    dashboard.start()
     autopilot.stop()
     manual_control.stop()
 
@@ -171,6 +176,7 @@ def main():
             if stop_pressed:
                 print("Stop button pressed. Stopping robot.")
                 audio.exit()
+                dashboard.set_status(mode="stopped")
                 autopilot.stop_servo_loop()
                 mode = MODE_STOPPED
                 autopilot.stop()
@@ -193,6 +199,7 @@ def main():
 
             if manual_pressed and mode != MODE_MANUAL:
                 mode = MODE_MANUAL
+                dashboard.set_status(mode="manual")
                 autopilot.stop_servo_loop()
                 autopilot.stop()
                 manual_control.stop()
@@ -200,6 +207,7 @@ def main():
 
             elif autopilot_pressed and mode != MODE_AUTOPILOT:
               mode = MODE_AUTOPILOT
+              dashboard.set_status(mode="autopilot")
               autopilot.start_servo_loop()
               autopilot.stop()
               manual_control.stop()
@@ -208,6 +216,7 @@ def main():
 
             elif follow_pressed and mode != MODE_FOLLOW:
               mode = MODE_FOLLOW
+              dashboard.set_status(mode="follow")
               autopilot.start_servo_loop()
               autopilot.stop()
               manual_control.stop()
@@ -242,6 +251,7 @@ def main():
         autopilot.stop()
         manual_control.stop()
         manual_control.close()
+        dashboard.stop()
         pygame.quit()
         print("Robot stopped.")
 
