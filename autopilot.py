@@ -9,6 +9,7 @@ import audio
 from ai_camera import (
     start_gesture_camera,
     get_gesture_command,
+    get_person_position,
     stop_gesture_camera,
 )
 
@@ -130,6 +131,58 @@ def safe_audio(sound_function):
         sound_function()
     except Exception as e:
         print("Audio error:", e)
+
+def follow_person_step():
+    """
+    Follow person using AI camera pose position.
+
+    Safety:
+        - stop if person is nearly out of frame
+        - stop if SRF02 says something is too close
+        - stop if no person is detected
+    """
+
+    person_position = get_person_position()
+
+    with i2c_lock:
+        command, dist_L, dist_R = srf02.get_front_status()
+
+    closest_distance = min(dist_L, dist_R)
+
+    # Too close to anything.
+    if closest_distance < 45:
+        print("FOLLOW: too close, stopping")
+        stop()
+        return
+
+    # No person detected.
+    if person_position is None:
+        print("FOLLOW: no person")
+        stop()
+        return
+
+    # Person is almost out of camera frame.
+    if person_position == "stop_edge":
+        print("FOLLOW: person near edge, stopping")
+        stop()
+        return
+
+    if person_position == "left":
+        print("FOLLOW: person left")
+        go_left_smooth()
+        return
+
+    if person_position == "right":
+        print("FOLLOW: person right")
+        go_right_smooth()
+        return
+
+    if person_position == "center":
+        print("FOLLOW: person center")
+        go_forward_slow()
+        return
+
+    stop()
 
 
 def autopilot_step():
