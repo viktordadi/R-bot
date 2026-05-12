@@ -7,7 +7,7 @@ NUM_LEDS = 60
 pixels = neopixel.NeoPixel(
     board.D18,
     NUM_LEDS,
-    brightness=0.05,
+    brightness=0.1,
     auto_write=False,
     pixel_order=neopixel.GRB
 )
