@@ -482,7 +482,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 <br><br>
 
                 <label>LED brightness: <span class="slider-value" id="led_brightness_value">0.15</span></label>
-                <input id="led_brightness" type="range" min="0.01" max="0.50" step="0.01" value="0.15">
+                <input id="led_brightness" type="range" min="0.01" max="1.00" step="0.01" value="0.15">
 
                 <br><br>
 
