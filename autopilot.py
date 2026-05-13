@@ -18,7 +18,7 @@ from ai_camera import (
 i2c_lock = threading.Lock()
 
 bus = smbus.SMBus(1)
-
+# Fastar
 MOTOR_ADDRESS = 0x50
 motor_speed = 220
 search_direction = 1
@@ -58,22 +58,6 @@ def stop_servo_loop():
     servo_loop_running = False
     print("Servo loop stopping")
 
-# ------------------------------------------------------------
-# Start AI gesture camera once
-# ------------------------------------------------------------
-# show_preview=True:
-#   opens a preview on the Pi display.
-#
-# show_preview=False:
-#   no preview, but detection still works.
-# ------------------------------------------------------------
-"""
-try:
-    start_gesture_camera(show_preview=True)
-    print("Gesture camera started")
-except Exception as e:
-    print("Could not start gesture camera:", e)
-"""
 
 def send_to_motor(m1, m2):
     """
@@ -137,18 +121,18 @@ def drive_smooth(forward, turn):
 
     forward:
         0.0 = stop
-        1.0 = full forward
+        1.0 = Alveg áfram
 
     turn:
-        -1.0 = turn left
-         0.0 = straight
-         1.0 = turn right
+        -1.0 = Beygja vinstri
+         0.0 = Beint
+         1.0 = Beygja hægri
     """
 
     forward = max(-1.0, min(1.0, forward))
     turn = max(-1.0, min(1.0, turn))
 
-    # Tune these numbers.
+    
     forward_power = motor_speed * forward
     turn_power = motor_speed * turn
 
@@ -159,29 +143,27 @@ def drive_smooth(forward, turn):
 
 
 def safe_audio(sound_function):
-    """
-    Runs an audio function without crashing the robot if audio fails.
-    """
-
+    
     try:
         sound_function()
     except Exception as e:
         print("Audio error:", e)
+        
 
 def follow_person_step():
     """
-    Smooth person-follow mode with edge recovery.
+    Eltir manneskju 
 
     AI camera:
         get_person_center_offset()
-        -1.0 = person far left
-         0.0 = person centered
-        +1.0 = person far right
+        -1.0 = Manneskja lengst vinstri
+         0.0 = Manneskja í miðjunni
+        +1.0 = Manneskja lengst hægri
 
     SRF02:
-        stops the robot if something is too close.
+        stopar ef róbotinn er of nálægt
     """
-
+    # Gildið segir hvort manneskjan sé vinstra megin, í miðju eða hægra megin.
     person_offset = get_person_center_offset()
 
     try:
@@ -189,6 +171,8 @@ def follow_person_step():
             command, dist_L, dist_R = srf02.get_front_status()
     except OSError as e:
         print("FOLLOW: SRF02 I2C error:", e)
+        # Uppfæra dashboard svo það sjáist að róbotinn er í follow mode,
+        # en skynjarinn gaf villu og róbotinn hefur stoppað.
         dashboard.set_status(
             mode="follow",
             person_position="sensor error",
@@ -205,11 +189,9 @@ def follow_person_step():
     # Dashboard slider settings
     # -----------------------------
     settings = dashboard.get_follow_settings()
-
     TOO_CLOSE_CM = settings["too_close_cm"]
     TARGET_DISTANCE_CM = settings["target_distance_cm"]
     MOVE_FORWARD_CM = settings["move_forward_cm"]
-
     TURN_GAIN = settings["turn_gain"]
     FORWARD_SPEED = settings["follow_speed"]
 
@@ -217,16 +199,10 @@ def follow_person_step():
     # Steering settings
     # -----------------------------
     DEADZONE = 0.15
-
-    # If offset is past this, the person is close to leaving the frame.
     EDGE_LIMIT = 0.65
-
-    # Stronger turning when the person is near the edge.
     EDGE_TURN_GAIN = 0.85
 
-    # -----------------------------
-    # Safety
-    # -----------------------------
+
     if person_offset is None:
         print("FOLLOW: no person")
         dashboard.set_status(
@@ -251,19 +227,15 @@ def follow_person_step():
         stop()
         return
 
-    # -----------------------------
-    # Steering / edge recovery
-    # -----------------------------
+
     if person_offset < -EDGE_LIMIT:
-        # Person is almost out of frame on the left.
-        # Rotate left harder and do not drive forward.
+        # Manneskjan er næstum farin úr frame vinstra meginn
         turn = -EDGE_TURN_GAIN
         person_position = "far left"
         follow_action = "recover left"
 
     elif person_offset > EDGE_LIMIT:
-        # Person is almost out of frame on the right.
-        # Rotate right harder and do not drive forward.
+        # Manneskjan er næstum farin úr frame hægra meginn
         turn = EDGE_TURN_GAIN
         person_position = "far right"
         follow_action = "recover right"
@@ -284,10 +256,9 @@ def follow_person_step():
         follow_action = "turn right"
 
     # -----------------------------
-    # Forward movement
+    # áfram hreyfingar
     # -----------------------------
     if abs(person_offset) > EDGE_LIMIT:
-        # Person is near edge, so only rotate to recover.
         forward = 0.0
 
     elif closest_distance > MOVE_FORWARD_CM:
@@ -329,18 +300,18 @@ def search_person_step():
     """
     Search mode.
 
-    Slowly turns left/right until the AI camera sees a person.
+    Snýr hægri og vinstri til að leita af manneskju.
 
     Returns:
-        True  = person found
-        False = still searching
+        True  = Manneskja fundinn
+        False = Ekkert fundið
     """
 
     global search_direction, last_search_switch_time
 
     person_offset = get_person_center_offset()
 
-    # If AI sees a person, stop searching.
+    # Ef myndavélin sér manneskju hætta að leita
     if person_offset is not None:
         print("SEARCH: person found")
         stop()
@@ -353,7 +324,7 @@ def search_person_step():
 
     now = time.time()
 
-    # Change direction every 2 seconds.
+    # Breyta um stefnu hverjar 2 sec
     if now - last_search_switch_time > 3.0:
         search_direction *= -1
         last_search_switch_time = now
@@ -399,9 +370,9 @@ def autopilot_step():
     Gestures from ai_camera.py:
 
         "stop"  -> stop
-        "left"  -> turn left
-        "right" -> turn right
-        None    -> use normal SRF02 autopilot
+        "left"  -> Beygja vinstri
+        "right" -> Beygja hægti
+        None    -> nota venjulegt SRF02 autopilot
     """
 
     # --------------------------------------------------------
