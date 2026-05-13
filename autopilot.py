@@ -29,15 +29,20 @@ servo_loop_running = False
 
 
 def servo_loop():
-    global servo_loop_running
+    while True:
+        try:
+            with i2c_lock:
+                servo.scan()
 
-    while servo_loop_running:
-        with i2c_lock:
-            servo.scan()
+        except OSError as e:
+            print("SERVO: I2C error:", e)
+            time.sleep(1.0)
+
+        except Exception as e:
+            print("SERVO: unexpected error:", e)
+            time.sleep(1.0)
+
         time.sleep(0.05)
-
-    print("Servo loop exited")
-
 
 def start_servo_loop():
     global servo_thread, servo_loop_running
