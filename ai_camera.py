@@ -1,29 +1,31 @@
 """
-autopilot.py can call:
+get_gesture_command() skilar:
 
-    start_gesture_camera(show_preview=True or False)
-    get_gesture_command()
-    stop_gesture_camera()
+    "stop"   = hönd/armur upp
+    "left"   = hönd langt til vinstri
+    "right"  = hönd langt til hægri
+    None     = ekkert gesture
 
-get_gesture_command() returns:
+get_person_center_offset() skilar:
 
-    "stop"   = left arm up OR right arm up
-    "left"   = left arm stretched out to the left
-    "right"  = right arm stretched out to the right
-    None     = no gesture detected
+    -1.0  = manneskja langt til vinstri
+     0.0  = manneskja í miðju
+    +1.0  = manneskja langt til hægri
+    None  = engin manneskja sést
 
-Gestures:
+get_person_position() skilar:
 
-    Left arm up      -> stop
-    Right arm up     -> stop
-    Left arm out     -> go left
-    Right arm out    -> go right
+    "left"
+    "center"
+    "right"
+    None
 """
 
 import time
 import threading
-import numpy as np
+
 import cv2
+import numpy as np
 
 from picamera2 import Picamera2, Preview, MappedArray
 from picamera2.devices.imx500 import IMX500, NetworkIntrinsics
@@ -31,8 +33,9 @@ from picamera2.devices.imx500.postprocess_highernet import postprocess_higherhrn
 
 
 # ------------------------------------------------------------
-# COCO pose keypoint numbers
+# COCO pose keypoint númer
 # ------------------------------------------------------------
+
 NOSE = 0
 LEFT_EYE = 1
 RIGHT_EYE = 2
@@ -52,7 +55,7 @@ LEFT_ANKLE = 15
 RIGHT_ANKLE = 16
 
 
-# Skeleton connections (COCO-style)
+# Línur sem teikna beinagrindina á preview
 SKELETON_LINES = [
     (LEFT_SHOULDER, RIGHT_SHOULDER),
     (LEFT_SHOULDER, LEFT_ELBOW),
@@ -70,77 +73,135 @@ SKELETON_LINES = [
 
 
 # ------------------------------------------------------------
-# Camera / AI settings
+# Camera / AI stillingar
 # ------------------------------------------------------------
+
 MODEL_PATH = "/usr/share/imx500-models/imx500_network_higherhrnet_coco.rpk"
 
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 
-# postprocess_higherhrnet expects (height, width)
+# postprocess_higherhrnet vill fá stærð sem (height, width)
 WINDOW_SIZE_H_W = (IMAGE_HEIGHT, IMAGE_WIDTH)
 
-# 10-15 is usually a good balance
 FPS = 10
 
 DETECTION_THRESHOLD = 0.3
+
+# Lægra gildi = auðveldara að samþykkja keypoints, en getur verið minna nákvæmt
 MIN_KEYPOINT_CONFIDENCE = 0.1
 
 
 # ------------------------------------------------------------
 # Shared state
 # ------------------------------------------------------------
+
 current_gesture_command = None
+current_person_offset = None
+
 gesture_lock = threading.Lock()
+person_lock = threading.Lock()
 
 camera_started = False
 
 imx500 = None
 picam2 = None
 
-current_person_position = None
-person_lock = threading.Lock()
 
-current_person_offset = None
-person_lock = threading.Lock()
+# ------------------------------------------------------------
+# Hjálparföll fyrir keypoints
+# ------------------------------------------------------------
 
+def point_ok(point, min_confidence=MIN_KEYPOINT_CONFIDENCE):
+    """
+    Athugar hvort keypoint sé nógu öruggt.
+
+    point er:
+        (x, y, confidence)
+
+    Skilar:
+        True ef confidence er nógu hátt
+        False annars
+    """
+
+    x, y, confidence = point
+    return confidence >= min_confidence
+
+
+def get_torso_points(person_keypoints):
+    """
+    Sækir torso punkta sem eru notaðir til að finna miðju manneskju.
+
+    Við notum axlir og mjaðmir því það er stöðugra en að nota höfuð,
+    sérstaklega þegar myndavélin er lág og hausinn fer út úr mynd.
+
+    Skilar lista af punktum.
+    """
+
+    return [
+        person_keypoints[LEFT_SHOULDER],
+        person_keypoints[RIGHT_SHOULDER],
+        person_keypoints[LEFT_HIP],
+        person_keypoints[RIGHT_HIP],
+    ]
+
+
+def get_good_points(points):
+    """
+    Tekur lista af keypoints og skilar bara þeim sem eru með nógu hátt confidence.
+    """
+
+    good_points = []
+
+    for point in points:
+        if point_ok(point):
+            good_points.append(point)
+
+    return good_points
+
+
+# ------------------------------------------------------------
+# Velja target person
+# ------------------------------------------------------------
 
 def choose_center_person(keypoints):
     """
-    Choose the detected person closest to the center of the image.
-    This prevents the robot from switching to people on the side.
+    Velur þá manneskju sem er næst miðju myndarinnar.
+
+    Þetta er notað svo robotinn fylgi ekki einhverjum sem er út á hlið
+    ef fleiri en ein manneskja sést.
+
+    Inntak:
+        keypoints = allar manneskjur sem AI camera finnur
+
+    Skilar:
+        keypoints fyrir eina manneskju
+        None ef engin nothæf manneskja fannst
     """
 
     if keypoints is None or len(keypoints) == 0:
         return None
 
     image_center_x = IMAGE_WIDTH / 2
+
     best_person = None
     best_distance = None
 
     for person in keypoints:
-        points_to_use = [
-            person[LEFT_SHOULDER],
-            person[RIGHT_SHOULDER],
-            person[LEFT_HIP],
-            person[RIGHT_HIP],
-        ]
+        torso_points = get_torso_points(person)
+        good_points = get_good_points(torso_points)
 
-        good_xs = []
-
-        for point in points_to_use:
-            x, y, confidence = point
-            if confidence >= MIN_KEYPOINT_CONFIDENCE:
-                good_xs.append(x)
-
-        if len(good_xs) < 2:
+        # Við þurfum að minnsta kosti tvo torso punkta til að treysta staðsetningu
+        if len(good_points) < 2:
             continue
 
-        person_center_x = sum(good_xs) / len(good_xs)
-        distance = abs(person_center_x - image_center_x)
+        xs = [point[0] for point in good_points]
+        person_center_x = sum(xs) / len(xs)
 
-        if best_distance is None or distance < best_distance:
-            best_distance = distance
+        distance_from_center = abs(person_center_x - image_center_x)
+
+        if best_distance is None or distance_from_center < best_distance:
+            best_distance = distance_from_center
             best_person = person
 
     return best_person
@@ -148,196 +209,119 @@ def choose_center_person(keypoints):
 
 def get_person_offset(person_keypoints):
     """
-    Returns how far the person is from the center of the image.
+    Reiknar hversu langt manneskjan er frá miðju myndarinnar.
 
-    Returns:
-        -1.0  = far left
-         0.0  = center
-        +1.0  = far right
-        None  = person not reliable
+    Skilar:
+        -1.0 = langt til vinstri
+         0.0 = í miðju
+        +1.0 = langt til hægri
+        None = ekki nógu góð gögn
+
+    Þetta er notað í smooth follow mode.
     """
 
-    points_to_use = [
-        person_keypoints[LEFT_SHOULDER],
-        person_keypoints[RIGHT_SHOULDER],
-        person_keypoints[LEFT_HIP],
-        person_keypoints[RIGHT_HIP],
-    ]
-
-    good_points = []
-
-    for point in points_to_use:
-        x, y, confidence = point
-        if confidence >= MIN_KEYPOINT_CONFIDENCE:
-            good_points.append(point)
+    torso_points = get_torso_points(person_keypoints)
+    good_points = get_good_points(torso_points)
 
     if len(good_points) < 2:
         return None
 
-    xs = [p[0] for p in good_points]
+    xs = [point[0] for point in good_points]
 
     person_center_x = sum(xs) / len(xs)
     image_center_x = IMAGE_WIDTH / 2
 
-    # Offset in pixels.
     offset_pixels = person_center_x - image_center_x
-
-    # Convert to -1.0 to +1.0.
     offset_normalized = offset_pixels / image_center_x
 
-    # Clamp just in case.
+    # Passa að gildið fari ekki út fyrir -1.0 til +1.0
     offset_normalized = max(-1.0, min(1.0, offset_normalized))
 
     return offset_normalized
 
 
-def get_person_follow_command(person_keypoints):
-    """
-    Keeps your old left/center/right system available.
-
-    Returns:
-        "left"
-        "center"
-        "right"
-        None
-    """
-
-    offset = get_person_offset(person_keypoints)
-
-    if offset is None:
-        return None
-
-    deadzone = 0.18
-
-    if offset < -deadzone:
-        return "left"
-
-    if offset > deadzone:
-        return "right"
-
-    return "center"
-
-
-def get_person_position():
-    """
-    Old follow-mode function.
-
-    Returns:
-        "left"
-        "center"
-        "right"
-        None
-    """
-
-    with person_lock:
-        if current_person_offset is None:
-            return None
-
-        deadzone = 0.18
-
-        if current_person_offset < -deadzone:
-            return "left"
-
-        if current_person_offset > deadzone:
-            return "right"
-
-        return "center"
-
-
 def get_person_center_offset():
     """
-    New smooth follow-mode function.
+    Skilar nýjasta offset gildi fyrir follow mode.
 
-    Returns:
-        -1.0 to +1.0
-        None if no person
+    Skilar:
+        -1.0 til +1.0
+        None ef engin manneskja sést
+
+    Þetta fall er kallað úr autopilot.py.
     """
 
     with person_lock:
         return current_person_offset
 
-def point_ok(point, min_confidence=MIN_KEYPOINT_CONFIDENCE):
-    x, y, confidence = point
-    return confidence >= min_confidence
-
+# ------------------------------------------------------------
+# Gesture detection
+# ------------------------------------------------------------
 
 def left_arm_up(person_keypoints):
+    """
+    Athugar hvort vinstri úlnliður sé fyrir ofan vinstri öxl.
+
+    Skilar:
+        True ef vinstri armur virðist vera uppi
+        False annars
+    """
+
     shoulder = person_keypoints[LEFT_SHOULDER]
     wrist = person_keypoints[LEFT_WRIST]
 
-    sx, sy, sc = shoulder
-    wx, wy, wc = wrist
-
     if not point_ok(shoulder):
         return False
+
     if not point_ok(wrist):
         return False
+
+    sx, sy, sc = shoulder
+    wx, wy, wc = wrist
 
     return wy < sy - 30
 
 
 def right_arm_up(person_keypoints):
+    """
+    Athugar hvort hægri úlnliður sé fyrir ofan hægri öxl.
+
+    Skilar:
+        True ef hægri armur virðist vera uppi
+        False annars
+    """
+
     shoulder = person_keypoints[RIGHT_SHOULDER]
     wrist = person_keypoints[RIGHT_WRIST]
 
-    sx, sy, sc = shoulder
-    wx, wy, wc = wrist
-
     if not point_ok(shoulder):
         return False
+
     if not point_ok(wrist):
         return False
+
+    sx, sy, sc = shoulder
+    wx, wy, wc = wrist
 
     return wy < sy - 30
 
 
-def left_arm_out_left(person_keypoints, image_width=IMAGE_WIDTH):
-    shoulder = person_keypoints[LEFT_SHOULDER]
-    wrist = person_keypoints[LEFT_WRIST]
-
-    sx, sy, sc = shoulder
-    wx, wy, wc = wrist
-
-    if not point_ok(shoulder):
-        return False
-    if not point_ok(wrist):
-        return False
-
-    # Úlnliður þarf bara að vera nógu langt vinstra megin við öxlina
-    min_side_distance = image_width * 0.12
-
-    wrist_left_of_shoulder = wx < sx - min_side_distance
-
-    # Ekki leyfa "arm up" að teljast sem left
-    not_too_high = wy > sy - image_width * 0.25
-
-    return wrist_left_of_shoulder and not_too_high
-
-
-def right_arm_out_right(person_keypoints, image_width=IMAGE_WIDTH):
-    shoulder = person_keypoints[RIGHT_SHOULDER]
-    wrist = person_keypoints[RIGHT_WRIST]
-
-    sx, sy, sc = shoulder
-    wx, wy, wc = wrist
-
-    if not point_ok(shoulder):
-        return False
-    if not point_ok(wrist):
-        return False
-
-    # Úlnliður þarf bara að vera nógu langt hægra megin við öxlina
-    min_side_distance = image_width * 0.12
-
-    wrist_right_of_shoulder = wx > sx + min_side_distance
-
-    # Ekki leyfa "arm up" að teljast sem right
-    not_too_high = wy > sy - image_width * 0.25
-
-    return wrist_right_of_shoulder and not_too_high
-
-
 def get_pose_command(person_keypoints):
+    """
+    Finnur gesture frá einni manneskju.
+
+    Gestures:
+        Hönd fyrir ofan axlir      -> "stop"
+        Hönd langt til vinstri     -> "left"
+        Hönd langt til hægri       -> "right"
+
+    Skilar:
+        "stop"
+        "left"
+        "right"
+        None
+    """
+
     left_shoulder = person_keypoints[LEFT_SHOULDER]
     right_shoulder = person_keypoints[RIGHT_SHOULDER]
     left_wrist = person_keypoints[LEFT_WRIST]
@@ -345,10 +329,13 @@ def get_pose_command(person_keypoints):
 
     if not point_ok(left_shoulder):
         return None
+
     if not point_ok(right_shoulder):
         return None
+
     if not point_ok(left_wrist):
         return None
+
     if not point_ok(right_wrist):
         return None
 
@@ -359,30 +346,61 @@ def get_pose_command(person_keypoints):
 
     shoulder_center_y = (lsy + rsy) / 2
 
-    # finna hvor öxlin er vinstra/hægra megin í myndinni
     left_edge_x = min(lsx, rsx)
     right_edge_x = max(lsx, rsx)
 
     margin = 80
 
-    # STOP: einhver úlnliður greinilega fyrir ofan axlir
+    # STOP: einhver hönd er greinilega fyrir ofan axlir
     if lwy < shoulder_center_y - 40 or rwy < shoulder_center_y - 40:
-        print("DEBUG gesture: stop")
         return "stop"
 
-    # LEFT: einhver hönd er vel fyrir utan vinstri öxl
+    # LEFT: einhver hönd er langt vinstra megin við líkamann
     if lwx < left_edge_x - margin or rwx < left_edge_x - margin:
-        print("DEBUG gesture: left")
         return "left"
 
-    # RIGHT: einhver hönd er vel fyrir utan hægri öxl
+    # RIGHT: einhver hönd er langt hægra megin við líkamann
     if lwx > right_edge_x + margin or rwx > right_edge_x + margin:
-        print("DEBUG gesture: right")
         return "right"
 
     return None
 
+
+def get_gesture_command():
+    """
+    Skilar nýjasta gesture command frá AI camera.
+
+    Þetta fall er kallað úr autopilot.py eða main.py.
+
+    Skilar:
+        "stop"
+        "left"
+        "right"
+        None
+    """
+
+    with gesture_lock:
+        return current_gesture_command
+
+
+# ------------------------------------------------------------
+# AI output parsing
+# ------------------------------------------------------------
+
 def parse_pose_output(metadata):
+    """
+    Les AI output frá IMX500 og breytir því í keypoints.
+
+    Inntak:
+        metadata frá camera request
+
+    Skilar:
+        keypoints með shape:
+            (fjöldi_manneskja, 17, 3)
+
+        eða None ef engin manneskja fannst.
+    """
+
     outputs = imx500.get_outputs(metadata=metadata, add_batch=True)
 
     if outputs is None:
@@ -401,16 +419,36 @@ def parse_pose_output(metadata):
         return None
 
     keypoints = np.reshape(np.stack(keypoints, axis=0), (len(scores), 17, 3))
+
     return keypoints
 
 
+# ------------------------------------------------------------
+# Teikna skeleton / texta á preview
+# ------------------------------------------------------------
+
 def draw_keypoint(frame, point, radius=5):
+    """
+    Teiknar einn punkt á myndina ef confidence er nógu hátt.
+    """
+
     x, y, confidence = point
+
     if confidence >= MIN_KEYPOINT_CONFIDENCE:
-        cv2.circle(frame, (int(x), int(y)), radius, (255, 255, 255), -1)
+        cv2.circle(
+            frame,
+            (int(x), int(y)),
+            radius,
+            (255, 255, 255),
+            -1,
+        )
 
 
 def draw_line(frame, point_a, point_b, thickness=2):
+    """
+    Teiknar línu milli tveggja keypoints ef báðir punktar eru nógu öruggir.
+    """
+
     ax, ay, ac = point_a
     bx, by, bc = point_b
 
@@ -425,28 +463,30 @@ def draw_line(frame, point_a, point_b, thickness=2):
 
 
 def draw_skeleton(frame, person_keypoints):
-    # Draw skeleton lines
+    """
+    Teiknar beinagrind fyrir eina manneskju á preview myndina.
+    """
+
     for a, b in SKELETON_LINES:
         draw_line(frame, person_keypoints[a], person_keypoints[b])
 
-    # Draw all visible keypoints
     for point in person_keypoints:
         draw_keypoint(frame, point)
 
 
 def draw_command_text(frame, command):
+    """
+    Teiknar gesture command texta á myndina.
+    """
+
     if command == "stop":
         text = "STOP"
-        color = (255, 255, 255)
     elif command == "left":
         text = "LEFT"
-        color = (255, 255, 255)
     elif command == "right":
         text = "RIGHT"
-        color = (255, 255, 255)
     else:
         text = "NO GESTURE"
-        color = (255, 255, 255)
 
     cv2.putText(
         frame,
@@ -454,142 +494,56 @@ def draw_command_text(frame, command):
         (20, 40),
         cv2.FONT_HERSHEY_SIMPLEX,
         1,
-        color,
+        (255, 255, 255),
         2,
     )
 
 
-def get_person_follow_command(person_keypoints):
+def draw_target_text(frame, person_offset):
     """
-    Returns:
-        "left"       = person is left, robot should turn left
-        "center"     = person is centered, robot can go forward
-        "right"      = person is right, robot should turn right
-        "stop_top"   = person is nearly out of frame at the top
-        None         = person not reliable
+    Teiknar TARGET og offset upplýsingar á preview.
     """
 
-    # Use upper-body points to estimate position.
-    points_to_use = [
-        person_keypoints[NOSE],
-        person_keypoints[LEFT_SHOULDER],
-        person_keypoints[RIGHT_SHOULDER],
-        person_keypoints[LEFT_HIP],
-        person_keypoints[RIGHT_HIP],
-    ]
+    cv2.putText(
+        frame,
+        "TARGET",
+        (20, 80),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1,
+        (255, 255, 255),
+        2,
+    )
 
-    good_points = []
-
-    for point in points_to_use:
-        x, y, confidence = point
-        if confidence >= MIN_KEYPOINT_CONFIDENCE:
-            good_points.append(point)
-
-    if len(good_points) < 2:
-        return None
-
-    xs = [p[0] for p in good_points]
-    ys = [p[1] for p in good_points]
-
-    person_center_x = sum(xs) / len(xs)
-    person_top_y = min(ys)
-
-    image_center_x = IMAGE_WIDTH / 2
-
-    # If the person is close to the top of the image, stop.
-    top_margin = IMAGE_HEIGHT * 0.12
-
-    if person_top_y < top_margin:
-        print("FOLLOW: person nearly out of frame at top")
-        return "stop_top"
-
-    # How far from center before turning.
-    center_deadzone = IMAGE_WIDTH * 0.15
-
-    if person_center_x < image_center_x - center_deadzone:
-        return "left"
-
-    if person_center_x > image_center_x + center_deadzone:
-        return "right"
-
-    return "center"
+    if person_offset is not None:
+        cv2.putText(
+            frame,
+            f"OFFSET: {person_offset:.2f}",
+            (20, 120),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255, 255),
+            2,
+        )
 
 
-def get_person_position():
-    """
-    Used by autopilot follow mode.
-
-    Returns:
-        "left"
-        "center"
-        "right"
-        "stop_edge"
-        None
-    """
-
-    with person_lock:
-        return current_person_position
-
-
-def choose_center_person(keypoints):
-    """
-    Chooses the person whose body center is closest to the center of the image.
-
-    Input:
-        keypoints = all detected people
-
-    Returns:
-        one person's keypoints, or None
-    """
-
-    if keypoints is None or len(keypoints) == 0:
-        return None
-
-    image_center_x = IMAGE_WIDTH / 2
-    best_person = None
-    best_distance = None
-
-    for person in keypoints:
-        points_to_use = [
-            person[LEFT_SHOULDER],
-            person[RIGHT_SHOULDER],
-            person[LEFT_HIP],
-            person[RIGHT_HIP],
-        ]
-
-        good_xs = []
-
-        for point in points_to_use:
-            x, y, confidence = point
-            if confidence >= MIN_KEYPOINT_CONFIDENCE:
-                good_xs.append(x)
-
-        # Need at least 2 good points to trust the body center
-        if len(good_xs) < 2:
-            continue
-
-        person_center_x = sum(good_xs) / len(good_xs)
-        distance_from_center = abs(person_center_x - image_center_x)
-
-        if best_distance is None or distance_from_center < best_distance:
-            best_distance = distance_from_center
-            best_person = person
-
-    return best_person
+# ------------------------------------------------------------
+# Camera callback
+# ------------------------------------------------------------
 
 def camera_callback(request):
     """
-    Runs automatically every camera frame.
+    Þetta fall keyrir sjálfkrafa fyrir hvern camera frame.
 
-    It:
-        1. Detects all people
-        2. Chooses the person closest to the center
-        3. Updates gesture command
-        4. Updates smooth follow offset
-        5. Draws skeleton preview
+    Það gerir:
+        1. Les pose output frá AI camera
+        2. Velur manneskjuna sem er næst miðju
+        3. Uppfærir gesture command
+        4. Uppfærir person offset fyrir follow mode
+        5. Teiknar skeleton og texta á preview
     """
 
-    global current_gesture_command, current_person_offset
+    global current_gesture_command
+    global current_person_offset
 
     metadata = request.get_metadata()
     keypoints = parse_pose_output(metadata)
@@ -599,39 +553,17 @@ def camera_callback(request):
 
     center_person = choose_center_person(keypoints)
 
-    with MappedArray(request, "main") as m:
-        frame = m.array
+    with MappedArray(request, "main") as mapped:
+        frame = mapped.array
 
-        # Draw all detected people.
         if keypoints is not None:
             for person in keypoints:
                 draw_skeleton(frame, person)
 
-        # Only the most centered person controls the robot.
         if center_person is not None:
             command = get_pose_command(center_person)
             person_offset = get_person_offset(center_person)
-
-            cv2.putText(
-                frame,
-                "TARGET",
-                (20, 80),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (255, 255, 255),
-                2,
-            )
-
-            if person_offset is not None:
-                cv2.putText(
-                    frame,
-                    f"OFFSET: {person_offset:.2f}",
-                    (20, 120),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (255, 255, 255),
-                    2,
-                )
+            draw_target_text(frame, person_offset)
 
         draw_command_text(frame, command)
 
@@ -642,12 +574,25 @@ def camera_callback(request):
         current_person_offset = person_offset
 
 
+# ------------------------------------------------------------
+# Start / stop camera
+# ------------------------------------------------------------
+
 def start_gesture_camera(show_preview=False):
     """
-    Starts the AI Camera gesture detector.
+    Startar AI gesture camera.
+
+    show_preview=True:
+        Opnar local preview glugga á Pi skjá.
+
+    show_preview=False:
+        Keyrir AI camera án local preview.
+        Þetta er yfirleitt betra þegar þú notar dashboard/systemd.
     """
 
-    global camera_started, imx500, picam2
+    global camera_started
+    global imx500
+    global picam2
 
     if camera_started:
         return
@@ -657,6 +602,7 @@ def start_gesture_camera(show_preview=False):
     imx500 = IMX500(MODEL_PATH)
 
     intrinsics = imx500.network_intrinsics
+
     if not intrinsics:
         intrinsics = NetworkIntrinsics()
         intrinsics.task = "pose estimation"
@@ -670,8 +616,13 @@ def start_gesture_camera(show_preview=False):
     picam2 = Picamera2(imx500.camera_num)
 
     config = picam2.create_preview_configuration(
-        main={"size": (IMAGE_WIDTH, IMAGE_HEIGHT), "format": "XRGB8888"},
-        controls={"FrameRate": intrinsics.inference_rate},
+        main={
+            "size": (IMAGE_WIDTH, IMAGE_HEIGHT),
+            "format": "XRGB8888",
+        },
+        controls={
+            "FrameRate": intrinsics.inference_rate,
+        },
         buffer_count=3,
     )
 
@@ -688,16 +639,24 @@ def start_gesture_camera(show_preview=False):
     imx500.set_auto_aspect_ratio()
 
     camera_started = True
+
     print("AI gesture camera started.")
 
 
-def get_gesture_command():
-    with gesture_lock:
-        return current_gesture_command
-
-
 def stop_gesture_camera():
-    global camera_started, picam2, imx500
+    """
+    Stoppar AI camera og losar myndavélina.
+
+    Þetta er mikilvægt svo önnur camera mode geti notað myndavélina
+    og svo þú fáir ekki:
+        Device or resource busy
+    """
+
+    global camera_started
+    global picam2
+    global imx500
+    global current_gesture_command
+    global current_person_offset
 
     if picam2 is not None:
         try:
@@ -714,10 +673,30 @@ def stop_gesture_camera():
     imx500 = None
     camera_started = False
 
+    with gesture_lock:
+        current_gesture_command = None
+
+    with person_lock:
+        current_person_offset = None
+
     time.sleep(1.0)
 
 
+# ------------------------------------------------------------
+# Test mode
+# ------------------------------------------------------------
+
 if __name__ == "__main__":
+    """
+    Testar ai_camera.py beint.
+
+    Keyra:
+        python3 ai_camera.py
+
+    Með preview:
+        python3 ai_camera.py --preview
+    """
+
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -727,14 +706,17 @@ if __name__ == "__main__":
     start_gesture_camera(show_preview=args.preview)
 
     try:
-        last = None
+        last_command = None
+        last_position = None
 
         while True:
             command = get_gesture_command()
+            position = get_person_position()
 
-            if command != last:
-                print(command)
-                last = command
+            if command != last_command or position != last_position:
+                print("gesture:", command, "person:", position)
+                last_command = command
+                last_position = position
 
             time.sleep(0.1)
 
