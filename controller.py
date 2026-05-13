@@ -5,13 +5,12 @@ import pygame
 DEADZONE = 0.08
 TRIGGER_DEADZONE = 0.08
 
-# PS5 DualSense pygame mappings for your controller
+# Mapping á tökkunum
 LEFT_STICK_X_AXIS = 0
 L2_AXIS = 2
 R2_AXIS = 5
 CIRCLE_BUTTON = 1
 
-# Set to True while testing trigger problems
 DEBUG_TRIGGERS = False
 
 
@@ -20,6 +19,7 @@ def clamp(value, min_value, max_value):
 
 
 def apply_deadzone(value):
+# Gert þannig hann hreyfist ekki ef joystickin eru búin að hreyfast smá
     if abs(value) < DEADZONE:
         return 0.0
     return value
@@ -27,12 +27,7 @@ def apply_deadzone(value):
 
 def trigger_to_0_1(value, idle_value=-1.0):
     """
-    Converts trigger axis value to 0.0 - 1.0.
-
-    Supports different pygame trigger styles:
-      rest=-1, pressed=+1
-      rest=+1, pressed=-1
-      rest=0,  pressed=+1 or -1
+    Breytir hvað þú færð úr R2 og L2 í 0.0 - 1.0.
     """
     if idle_value >= 0.5:
         pressed = (idle_value - value) / (idle_value + 1.0)
@@ -51,16 +46,15 @@ def trigger_to_0_1(value, idle_value=-1.0):
 
 def setup_controller():
     """
-    Initializes pygame and the PS5 controller.
+    Setur upp pygame og PS5 fjarstýringuna.
 
     Returns:
         controller, l2_idle, r2_idle
-
-    Use these values with read_controller().
     """
     pygame.init()
     pygame.joystick.init()
-
+    # Athuga hvort einhver fjarstýring sé tengd.
+    # Ef engin fjarstýring finnst, þá stoppar forritið með villu.
     if pygame.joystick.get_count() == 0:
         raise RuntimeError("No PS5 controller found. Connect it with USB or Bluetooth.")
 
@@ -78,8 +72,9 @@ def setup_controller():
     print()
     print("Do not touch L2/R2 during calibration.")
 
-    # Let pygame receive stable starting values before calibration
     time.sleep(0.5)
+    # Lesa pygame events nokkrum sinnum til að uppfæra stöðu fjarstýringarinnar.
+    # Þetta hjálpar til við að fá rétt og stöðug gildi áður en calibration er gerð
     for _ in range(10):
         pygame.event.pump()
         time.sleep(0.02)
@@ -93,24 +88,24 @@ def setup_controller():
 
 
 def read_controller(controller, l2_idle, r2_idle):
-    """
-    Reads the PS5 controller once.
+   """
+    Les PS5 fjarstýringuna einu sinni.
 
     Returns:
         throttle, steering, quit_pressed
 
     throttle:
-        +1.0 = full forward
-         0.0 = stop
-        -1.0 = full backward
+        +1.0 = full áfram
+         0.0 = stoppa
+        -1.0 = full afturábak
 
     steering:
-        -1.0 = left
-         0.0 = straight
-        +1.0 = right
+        -1.0 = beygja til vinstri
+         0.0 = keyra beint
+        +1.0 = beygja til hægri
 
     quit_pressed:
-        True if Circle was pressed.
+        True ef ýtt var á Circle takkann.
     """
     pygame.event.pump()
 
@@ -145,8 +140,7 @@ def close_controller():
     pygame.quit()
 
 
-# Optional test mode:
-# python3 controller.py
+
 if __name__ == "__main__":
     controller, l2_idle, r2_idle = setup_controller()
 
