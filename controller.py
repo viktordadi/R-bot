@@ -88,7 +88,7 @@ def setup_controller():
 
 
 def read_controller(controller, l2_idle, r2_idle):
-   """
+    """
     Les PS5 fjarstýringuna einu sinni.
 
     Returns:
