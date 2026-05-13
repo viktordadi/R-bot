@@ -14,7 +14,7 @@ controller_was_missing = True
 
 def start_main():
     global main_process
-
+    # Ef main.py er nú þegar í gangi, ekki ræsa annað eintak.
     if main_process is not None and main_process.poll() is None:
         print("main.py is already running")
         return
@@ -28,7 +28,7 @@ def start_main():
 
 def stop_main():
     global main_process
-
+    # Ef main.py er ekki í gangi, þá þarf ekkert að stoppa.
     if main_process is None or main_process.poll() is not None:
         main_process = None
         return
