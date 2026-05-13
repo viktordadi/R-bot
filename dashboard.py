@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 PORT = 8081
-
+# Skilgreina status á robotinum
 robot_status = {
     "mode": "stopped",
     "camera_mode": "off",
@@ -17,7 +17,7 @@ robot_status = {
     "dist_L": None,
     "dist_R": None,
 }
-
+# skilgreina hvernig setting byrja
 settings = {
     "follow_speed": 0.55,
     "turn_gain": 0.40,
@@ -42,7 +42,7 @@ led_command_lock = threading.Lock()
 server = None
 server_thread = None
 
-
+# fá ip á pi
 def get_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
