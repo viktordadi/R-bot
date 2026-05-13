@@ -52,17 +52,34 @@ def rainbow(brightness):
 
 
 def blink(r, g, b, brightness):
+    """
+    Wave effect sem keyrir endalaust.
+    Liturinn færist yfir LED röðina og stoppar aldrei.
+    """
+
     pixels.brightness = brightness
 
-    for _ in range(6):
-        pixels.fill((int(r), int(g), int(b)))
-        pixels.show()
-        time.sleep(0.25)
+    r = int(r)
+    g = int(g)
+    b = int(b)
 
-        pixels.fill((0, 0, 0))
-        pixels.show()
-        time.sleep(0.25)
+    while True:
+        for head in range(NUM_LEDS):
+            for i in range(NUM_LEDS):
+                # Reikna fjarlægð frá "hausnum" á wave-inu.
+                distance = abs(i - head)
 
+                # Gera LED ljósin daufari eftir því sem þau eru lengra frá hausnum.
+                fade = max(0.0, 1.0 - distance / 4.0)
+
+                pixels[i] = (
+                    int(r * fade),
+                    int(g * fade),
+                    int(b * fade),
+                )
+
+            pixels.show()
+            time.sleep(0.06)
 
 if __name__ == "__main__":
     mode = sys.argv[1]
