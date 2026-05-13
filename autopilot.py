@@ -9,7 +9,6 @@ import audio
 from ai_camera import (
     start_gesture_camera,
     get_gesture_command,
-    get_person_position,
     get_person_center_offset,
     stop_gesture_camera,
 )
