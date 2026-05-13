@@ -29,7 +29,15 @@ servo_loop_running = False
 
 
 def servo_loop():
+    global servo_loop_running
+
     while True:
+        # Ef servo loop á ekki að keyra, þá bíður hún bara.
+        # Þetta gerist t.d. í manual mode.
+        if not servo_loop_running:
+            time.sleep(0.1)
+            continue
+
         try:
             with i2c_lock:
                 servo.scan()
@@ -47,20 +55,22 @@ def servo_loop():
 def start_servo_loop():
     global servo_thread, servo_loop_running
 
-    if servo_loop_running:
-        return
-
     servo_loop_running = True
-    servo_thread = threading.Thread(target=servo_loop, daemon=True)
-    servo_thread.start()
-    print("Servo loop started")
+
+    # Ef servo thread er ekki til eða er dauður, búa hann til.
+    if servo_thread is None or not servo_thread.is_alive():
+        servo_thread = threading.Thread(target=servo_loop, daemon=True)
+        servo_thread.start()
+        print("Servo loop started")
+    else:
+        print("Servo loop enabled")
 
 
 def stop_servo_loop():
     global servo_loop_running
 
     servo_loop_running = False
-    print("Servo loop stopping")
+    print("Servo loop paused")
 
 
 def send_to_motor(m1, m2):
