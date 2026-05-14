@@ -25,7 +25,7 @@ import led_control
 
 # PS5 button mappings in pygame
 R1_BUTTON = 5          # R1 = follow person mode
-MENU_BUTTON = 8
+MENU_BUTTON = 8        # Menu_BUTTON = honk
 L3_BUTTON = 11         # L3 = volume down
 R3_BUTTON = 12         # R3 = volume up
 L1_BUTTON = 4          # L1 = start/stop live mic receiver
