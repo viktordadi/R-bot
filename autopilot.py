@@ -428,11 +428,11 @@ def autopilot_step():
     closest_distance = min(dist_L, dist_R)
 
     # Emergency stop if something is very close.
-    if closest_distance < 25:
+    if closest_distance < 10:
         print("Emergency obstacle stop")
-        stop()
+        go_backwards()
         safe_audio(audio.stop_faaah)
-        time.sleep(0.2)
+        time.sleep(0.6)
         return
 
     # --------------------------------------------------------
