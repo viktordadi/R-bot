@@ -10,6 +10,7 @@ live_mic_process = None
 # ffmpeg -f dshow -i audio="Microphone Array (Realtek(R) Audio)" -filter:a "volume=8" -ar 48000 -ac 2 -f s16le udp://10.100.38.59:5005
 
 def say(text):
+    # Text to speach
     if text is None:
         return
 
@@ -41,6 +42,7 @@ def volume_down():
     print("Volume down")
 
 def start_pi_audio_receiver():
+    # Live mic start
     global live_mic_process
 
     if live_mic_process is not None:
@@ -64,6 +66,7 @@ def start_pi_audio_receiver():
 
 
 def stop_pi_audio_receiver():
+    # Live mic stop
     global live_mic_process
 
     if live_mic_process is not None:
@@ -76,6 +79,9 @@ def stop_pi_audio_receiver():
         print("Live mic receiver stopped")
 pygame.mixer.init()
 
+# -----------
+# Hljóðinn mp3
+# -----------
 def is_playing():
     return pygame.mixer.music.get_busy()
 
