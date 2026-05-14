@@ -19,7 +19,7 @@ i2c_lock = threading.Lock()
 bus = smbus.SMBus(1)
 # Fastar
 MOTOR_ADDRESS = 0x50
-motor_speed = 220
+motor_speed = 160
 search_direction = 1
 last_search_switch_time = 0
 
