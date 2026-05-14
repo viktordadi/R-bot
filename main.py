@@ -120,7 +120,7 @@ def handle_dashboard_command(command, mode):
 
     if command == "camera_stream":
         stop_all_camera_modes()
-        camera_stream.start(open_browser=False)
+        camera_stream.start()
         camera_mode = CAMERA_STREAM
         dashboard.set_status(camera_mode="stream")
         return mode
@@ -232,7 +232,7 @@ def switch_camera_mode():
         print("Switching camera mode: normal browser stream")
         stop_all_camera_modes()
         dashboard.set_status(camera_mode=CAMERA_STREAM)
-        camera_stream.start(open_browser=True)
+        camera_stream.start()
         camera_mode = CAMERA_STREAM
 
     # Annars slökkva á öllum camera modes.
