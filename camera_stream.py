@@ -36,16 +36,14 @@ def get_ip():
     Finnur IP tölu Raspberry Pi á netinu.
 
     Returns:
-        IP tala sem string, t.d. "192.168.1.50".
+        IP tala sem streng.
         Ef ekkert virkar, skilar það "127.0.0.1".
     """
 
     try:
-        # Búa til UDP socket.
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         # Tengjast Google DNS bara til að finna hvaða IP töluna Pi notar.
-        # Þetta sendir ekki raunverulega gögn til Google.
         s.connect(("8.8.8.8", 80))
 
         # Ná í local IP töluna.
@@ -76,7 +74,6 @@ class StreamOutput(io.BufferedIOBase):
         with frame_lock:
             latest_frame = buf
 
-        # Skila fjölda bytes sem voru skrifuð.
         return len(buf)
 
 
@@ -135,7 +132,6 @@ class StreamHandler(BaseHTTPRequestHandler):
                     self.wfile.write(frame)
                     self.wfile.write(b"\r\n")
 
-                # Lítil bið svo serverinn noti ekki of mikið CPU.
                 time.sleep(0.02)
 
         except BrokenPipeError:
@@ -155,7 +151,6 @@ def start():
     """
     Ræsir venjulegan camera stream.
 
-    Opnar ekki browser sjálfkrafa.
     Prentar bara linkinn sem hægt er að opna handvirkt.
     """
 
@@ -186,7 +181,6 @@ def start():
         recording = False
         return
 
-    # Búa til output hlut sem fær JPEG myndir frá Picamera2.
     output = StreamOutput()
 
     # Byrja að taka upp MJPEG stream.
@@ -202,7 +196,7 @@ def start():
     # Merkja að stream sé í gangi.
     recording = True
 
-    # Prenta linkinn, en ekki opna hann sjálfkrafa.
+    # Prenta linkinn.
     ip = get_ip()
     print(f"Stream running on port {PORT}")
     print(f"Open camera stream manually: http://{ip}:{PORT}/")
