@@ -75,7 +75,7 @@ def stop_servo_loop():
 
 def send_to_motor(m1, m2):
     """
-    Sends speed and direction to the motor controller over I2C.
+    Sendir hraðann og áttina á mótorunum
     """
 
     m1 = max(-240, min(240, int(m1)))
@@ -90,6 +90,9 @@ def send_to_motor(m1, m2):
     data = [m1_speed, m1_sign, m2_speed, m2_sign]
     bus.write_i2c_block_data(MOTOR_ADDRESS, 0x00, data)
 
+# ------------------
+#  Skilgreina áttirnar
+# ------------------
 
 def go_forward():
     send_to_motor(motor_speed, -motor_speed*0.95)
